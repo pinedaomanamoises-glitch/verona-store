@@ -90,6 +90,17 @@
             color: #f8fafc !important;
             border-color: #475569 !important;
         }
+        .order-swipe {
+            touch-action: pan-y;
+            user-select: none;
+        }
+        .order-swipe-content {
+            transition: transform 0.18s ease;
+            will-change: transform;
+        }
+        .order-swipe-content.dragging {
+            transition: none;
+        }
         .dropdown-menu {
             transform-origin: top right;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -248,7 +259,18 @@
                             <p class="text-slate-500 italic text-center py-4">No se han añadido productos aún.</p>
                         </div>
 
-                        <div class="mt-3 space-y-1.5">
+                        <div class="mt-3 space-y-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <label for="order-promotion" class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Promoción</label>
+                                <button type="button" onclick="openPromoManagerModal()" class="text-[10px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1">
+                                    <i class="fa-solid fa-gear"></i> Configurar
+                                </button>
+                            </div>
+                            <select id="order-promotion" onchange="onPromotionChange()" class="w-full bg-slate-800 border border-slate-700 text-slate-100 text-xs rounded-xl px-2.5 py-2 focus:ring-2 focus:ring-amber-500">
+                                <option value="">Sin promoción</option>
+                            </select>
+                            <p class="text-[10px] text-slate-500">Las promociones que no cumplen aparecen deshabilitadas con el motivo.</p>
+                            <p id="order-promo-detail" class="hidden text-[10px] text-emerald-400"></p>
                             <div id="savings-row" class="hidden justify-between items-center text-xs text-emerald-400 font-medium">
                                 <span><i class="fa-solid fa-tag mr-1"></i> Descuento de Promociones:</span>
                                 <span id="order-savings">-$0.00</span>
@@ -271,6 +293,7 @@
                             </span>
                             <span id="saved-orders-count" class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">0</span>
                         </h3>
+                        <p class="text-[10px] text-slate-400 mb-2">Desliza a la derecha para marcar entregado y a la izquierda para eliminar.</p>
                         <div id="saved-orders-list" class="space-y-3 max-h-80 overflow-y-auto pr-1"></div>
                     </div>
                 </div>
@@ -428,26 +451,6 @@
                                 </div>
                             </div>
 
-                            <div class="bg-amber-50/70 p-3.5 rounded-xl border border-amber-200/60 space-y-2">
-                                <div class="flex items-center justify-between">
-                                    <label class="text-xs font-bold text-bakery-900 uppercase tracking-wider flex items-center gap-1.5">
-                                        <i class="fa-solid fa-tags text-amber-600"></i> Promoción (Opcional)
-                                    </label>
-                                </div>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Piezas (X)</label>
-                                        <input type="number" min="2" id="prod-promo-qty" placeholder="Ej. 3"
-                                            class="w-full px-3 py-1.5 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 text-sm text-slate-800 bg-white font-medium">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Precio Promo ($Y)</label>
-                                        <input type="number" step="0.50" min="0" id="prod-promo-price" placeholder="Ej. 50"
-                                            class="w-full px-3 py-1.5 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 text-sm text-slate-800 bg-white font-medium">
-                                    </div>
-                                </div>
-                            </div>
-
                             <div class="pt-2">
                                 <button type="submit" id="btn-save-prod" class="w-full bg-bakery-600 hover:bg-bakery-700 text-white font-bold py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-2 text-sm">
                                     <i class="fa-solid fa-plus"></i> Guardar Producto
@@ -553,7 +556,7 @@
                 </div>
             </div>
             <div class="p-3 bg-slate-50 border-t border-slate-100 flex gap-2">
-                <button id="ticket-btn-edit" onclick="" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">Editar</button>
+                <button id="ticket-btn-edit" onclick="editActiveTicket()" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">Editar</button>
                 <button onclick="closeTicketModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 rounded-xl text-xs transition">Cerrar</button>
             </div>
         </div>
@@ -587,6 +590,31 @@
         </div>
     </div>
 
+    <div id="modal-promotions" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-amber-100 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+                <div>
+                    <h3 class="font-bold text-sm text-amber-400 flex items-center gap-2"><i class="fa-solid fa-tags"></i> Promociones</h3>
+                    <p class="text-[11px] text-slate-400">Crea las promociones que necesites. Se aplican manualmente en el pedido.</p>
+                </div>
+                <button onclick="closePromoManagerModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="promotions-editor" class="p-4 overflow-y-auto space-y-3 flex-grow"></div>
+            <div class="p-3 bg-slate-50 border-t border-slate-100 flex flex-wrap justify-between items-center gap-2">
+                <div class="flex items-center gap-3">
+                    <button onclick="addPromotionDraft()" class="text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1">
+                        <i class="fa-solid fa-plus"></i> Agregar promoción
+                    </button>
+                    <button onclick="resetPromotions()" class="text-xs text-amber-700 font-semibold hover:underline">Restablecer</button>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="closePromoManagerModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition">Cancelar</button>
+                    <button onclick="savePromotionsFromModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-confirm" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-rose-100 overflow-hidden text-center p-6 space-y-4">
             <div class="w-14 h-14 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-2xl mx-auto"><i class="fa-solid fa-triangle-exclamation"></i></div>
@@ -596,7 +624,7 @@
             </div>
             <div class="flex gap-2 pt-2">
                 <button onclick="closeConfirmModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition">Cancelar</button>
-                <button id="btn-modal-action-confirm" onclick="" class="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm">Sí</button>
+                <button id="btn-modal-action-confirm" onclick="executeConfirmAction()" class="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm">Sí</button>
             </div>
         </div>
     </div>
@@ -656,7 +684,7 @@
         const BACKEND_URL = localStorage.getItem('verona_backend_url')
             || ((location.hostname === 'localhost' || location.hostname === '127.0.0.1')
                 ? 'http://localhost:3000'
-                : 'https://veronastore-bckend.onrender.com');
+                : 'https://veronastore-bkend.onrender.com');
 
         let pendingAIPreview = null;
 
@@ -945,15 +973,60 @@ const DEFAULT_PRODUCTS = [
 
         const DEFAULT_PANADERO_TEMPLATE = `*REPORTE PARA PANADERÍA*\n📅 Fecha: {fecha}\n-----------------------------------\n\n*TOTALES POR CATEGORÍA Y PIEZAS:*\n{categorias_piezas}\n\n*DETALLE DE PRODUCTOS:*\n{productos}\n-----------------------------------\n💰 *Costo Total Panadero:* ${"{costo_total}"}\n📦 *Total Pedidos:* {total_pedidos} clientes`;
 
-        let categories = JSON.parse(localStorage.getItem('bakery_categories')) || DEFAULT_CATEGORIES;
-        let products = JSON.parse(localStorage.getItem('bakery_products')) || DEFAULT_PRODUCTS;
-        let orders = JSON.parse(localStorage.getItem('bakery_orders')) || [];
+        const DEFAULT_PROMOTIONS = [
+            { id: 'promo_1', name: '3 pastes por $70', type: 'cantidad_precio', category: 'Pastes', qty: 3, price: 70, percent: 0, min: 0, active: true },
+            { id: 'promo_2', name: '5 pastes por $100', type: 'cantidad_precio', category: 'Pastes', qty: 5, price: 100, percent: 0, min: 0, active: true },
+            { id: 'promo_3', name: '10% en pedidos mayores a $250', type: 'porcentaje', category: '__ALL__', qty: 0, price: 0, percent: 10, min: 250, active: true }
+        ];
+
+        function loadStoredArray(key, fallback) {
+            try {
+                const raw = localStorage.getItem(key);
+                if (!raw) return fallback;
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : fallback;
+            } catch (error) {
+                console.warn(`No se pudo leer ${key}:`, error);
+                return fallback;
+            }
+        }
+
+        let categories = loadStoredArray('bakery_categories', DEFAULT_CATEGORIES);
+        let products = loadStoredArray('bakery_products', DEFAULT_PRODUCTS);
+        let orders = loadStoredArray('bakery_orders', []);
+        let promotions = loadStoredArray('bakery_promotions', DEFAULT_PROMOTIONS);
         let panaderoTemplate = localStorage.getItem('bakery_template') || DEFAULT_PANADERO_TEMPLATE;
+
+        if (!categories.length) categories = [...DEFAULT_CATEGORIES];
+        if (!products.length) products = [...DEFAULT_PRODUCTS];
+
+        promotions = (Array.isArray(promotions) ? promotions : DEFAULT_PROMOTIONS)
+            .filter(promo => promo && typeof promo === 'object')
+            .map((promo, index) => ({
+                id: promo.id || `promo_${index + 1}`,
+                name: String(promo.name || `Promoción ${index + 1}`),
+                type: promo.type === 'porcentaje' ? 'porcentaje' : 'cantidad_precio',
+                category: (promo.category === '__ALL__' || (promo.type === 'porcentaje' && /pedidos|orden/i.test(String(promo.name || ''))))
+                    ? '__ALL__'
+                    : (categories.includes(promo.category) ? promo.category : 'Pastes'),
+                qty: Math.max(0, Number(promo.qty) || 0),
+                price: Math.max(0, Number(promo.price) || 0),
+                percent: Math.min(100, Math.max(0, Number(promo.percent) || 0)),
+                min: Math.max(0, Number(promo.min) || 0),
+                active: promo.active !== false
+            }));
+
+        if (!promotions.length) {
+            promotions = DEFAULT_PROMOTIONS.map(promo => ({ ...promo }));
+        }
 
         let currentOrderItems = {};
         let editingOrderId = null;
         let activeModalCategory = null;
         let activeCatalogCategoryFilter = 'TODOS';
+        let selectedPromotionId = '';
+        let activeTicketOrderId = null;
+        let pendingConfirmAction = null;
 
         function escapeHtml(str) {
             if (!str) return '';
@@ -964,6 +1037,7 @@ const DEFAULT_PRODUCTS = [
             localStorage.setItem('bakery_categories', JSON.stringify(categories));
             localStorage.setItem('bakery_products', JSON.stringify(products));
             localStorage.setItem('bakery_orders', JSON.stringify(orders));
+            localStorage.setItem('bakery_promotions', JSON.stringify(promotions));
             updateBadges();
         }
 
@@ -1097,7 +1171,7 @@ const DEFAULT_PRODUCTS = [
             const cost = parseFloat(document.getElementById('prod-cost').value) || 0;
             const price = parseFloat(document.getElementById('prod-price').value) || 0;
 
-            products.push({ id: Date.now().toString(), name, category, cost, price, promoQty: 0, promoPrice: 0 });
+            products.push({ id: Date.now().toString(), name, category, cost, price });
             saveData();
             document.getElementById('form-product').reset();
             onCategoryChange();
@@ -1173,26 +1247,159 @@ const DEFAULT_PRODUCTS = [
             updateOrderSummaryUI();
         }
 
+        function getCategoryTotals(category) {
+            let qty = 0;
+            let subtotal = 0;
+            Object.entries(currentOrderItems).forEach(([id, cantidad]) => {
+                const product = products.find(p => p.id === id);
+                if (product && (category === '__ALL__' || product.category === category)) {
+                    qty += cantidad;
+                    subtotal += cantidad * product.price;
+                }
+            });
+            return { qty, subtotal, average: qty > 0 ? subtotal / qty : 0 };
+        }
+
+        function getPromotionStatus(promo) {
+            if (!promo.active) {
+                return { eligible: false, reason: 'Inactiva', discount: 0, detail: '' };
+            }
+
+            const totals = getCategoryTotals(promo.category);
+            if (totals.qty === 0) {
+                return { eligible: false, reason: `Sin productos en ${promo.category === '__ALL__' ? 'la orden' : promo.category}`, discount: 0, detail: '' };
+            }
+
+            if (promo.type === 'cantidad_precio') {
+                if (!(promo.qty > 0) || !(promo.price > 0)) {
+                    return { eligible: false, reason: 'Configuración incompleta', discount: 0, detail: '' };
+                }
+                if (totals.qty < promo.qty) {
+                    const missing = promo.qty - totals.qty;
+                    return { eligible: false, reason: `Faltan ${missing} ${missing === 1 ? 'pza' : 'pzas'}`, discount: 0, detail: '' };
+                }
+                return { eligible: true, reason: '', ...calculatePromotion(promo) };
+            }
+
+            if (promo.type === 'porcentaje') {
+                if (!(promo.percent > 0)) {
+                    return { eligible: false, reason: 'Configuración incompleta', discount: 0, detail: '' };
+                }
+                if (totals.subtotal < promo.min) {
+                    return { eligible: false, reason: `Mínimo $${promo.min.toFixed(2)}`, discount: 0, detail: '' };
+                }
+                return { eligible: true, reason: '', ...calculatePromotion(promo) };
+            }
+
+            return { eligible: false, reason: 'Tipo no válido', discount: 0, detail: '' };
+        }
+
+        function getApplicablePromotions() {
+            return promotions.filter(promo => getPromotionStatus(promo).eligible);
+        }
+
+        function calculatePromotion(promo) {
+            const totals = getCategoryTotals(promo.category);
+
+            if (promo.type === 'cantidad_precio') {
+                if (!(promo.qty > 0)) return { discount: 0, detail: '' };
+                const grupos = Math.floor(totals.qty / promo.qty);
+                const sueltos = totals.qty % promo.qty;
+                const totalPromo = (grupos * promo.price) + (sueltos * totals.average);
+                return {
+                    discount: Math.max(0, Math.min(totals.subtotal - totalPromo, totals.subtotal)),
+                    detail: `${grupos} × ${promo.qty} pzas + ${sueltos} sueltas`
+                };
+            }
+
+            const discount = totals.subtotal * (promo.percent / 100);
+            return {
+                discount: Math.max(0, Math.min(discount, totals.subtotal)),
+                detail: `${promo.percent}% sobre ${promo.category === '__ALL__' ? 'toda la orden' : promo.category}`
+            };
+        }
+
+        function renderPromotionSelect(activePromotions) {
+            const select = document.getElementById('order-promotion');
+            if (!select) return;
+
+            const previous = selectedPromotionId;
+            select.innerHTML = '<option value="">Sin promoción</option>';
+
+            activePromotions.forEach(promo => {
+                const status = getPromotionStatus(promo);
+                const option = document.createElement('option');
+                option.value = promo.id;
+                option.disabled = !status.eligible;
+                option.textContent = status.eligible
+                    ? `${promo.name} · ahorras $${status.discount.toFixed(2)}`
+                    : `${promo.name} · ${status.reason}`;
+                if (!status.eligible) option.className = 'text-slate-500';
+                select.appendChild(option);
+            });
+
+            const canKeepPrevious = activePromotions.some(promo => {
+                return promo.id === previous && getPromotionStatus(promo).eligible;
+            });
+            select.value = canKeepPrevious ? previous : '';
+            selectedPromotionId = select.value;
+        }
+
         function updateOrderSummaryUI() {
             const itemsContainer = document.getElementById('current-order-items');
             itemsContainer.innerHTML = '';
-            let grandTotal = 0, totalCount = 0;
+            let subtotal = 0;
+            let totalCount = 0;
 
             Object.keys(currentOrderItems).forEach(id => {
                 const product = products.find(p => p.id === id);
                 const qty = currentOrderItems[id];
                 if (!product) return;
-                grandTotal += qty * product.price;
+                subtotal += qty * product.price;
                 totalCount += qty;
 
                 const row = document.createElement('div');
-                row.className = "flex justify-between items-center py-1 border-b border-slate-800/50 text-xs";
+                row.className = 'flex justify-between items-center py-1 border-b border-slate-800/50 text-xs';
                 row.innerHTML = `<div><span class="font-bold text-amber-400">${qty}x</span> <span class="text-slate-200">${escapeHtml(product.name)}</span></div><div class="text-right"><span class="font-semibold text-slate-100">$${(qty * product.price).toFixed(2)}</span></div>`;
                 itemsContainer.appendChild(row);
             });
 
+            const activePromotions = promotions.filter(promo => promo.active);
+            const applicable = activePromotions.filter(promo => getPromotionStatus(promo).eligible);
+            if (selectedPromotionId && !applicable.some(promo => promo.id === selectedPromotionId)) {
+                selectedPromotionId = '';
+            }
+            renderPromotionSelect(activePromotions);
+
+            const selectedPromo = applicable.find(promo => promo.id === selectedPromotionId);
+            const promotionResult = selectedPromo ? calculatePromotion(selectedPromo) : null;
+            const discount = promotionResult ? Math.min(promotionResult.discount, subtotal) : 0;
+
+            const detail = document.getElementById('order-promo-detail');
+            if (selectedPromo && promotionResult) {
+                detail.textContent = `${selectedPromo.name}: ${promotionResult.detail}`;
+                detail.classList.remove('hidden');
+            } else {
+                detail.classList.add('hidden');
+            }
+
+            const savingsRow = document.getElementById('savings-row');
+            if (discount > 0) {
+                savingsRow.classList.remove('hidden');
+                savingsRow.classList.add('flex');
+                document.getElementById('order-savings').innerText = `-$${discount.toFixed(2)}`;
+            } else {
+                savingsRow.classList.add('hidden');
+                savingsRow.classList.remove('flex');
+            }
+
             document.getElementById('current-items-count').innerText = `${totalCount} pzas`;
-            document.getElementById('order-total').innerText = `$${grandTotal.toFixed(2)}`;
+            document.getElementById('order-total').innerText = `$${Math.max(0, subtotal - discount).toFixed(2)}`;
+        }
+
+        function onPromotionChange() {
+            selectedPromotionId = document.getElementById('order-promotion').value;
+            updateOrderSummaryUI();
         }
 
         function saveCurrentOrder() {
@@ -1202,36 +1409,214 @@ const DEFAULT_PRODUCTS = [
                 return;
             }
 
-            let items = [], totalSales = 0, totalCost = 0;
+            const wasEditing = Boolean(editingOrderId);
+            let items = [];
+            let subtotal = 0;
+            let totalCost = 0;
+
             Object.entries(currentOrderItems).forEach(([prodId, qty]) => {
                 const prod = products.find(p => p.id === prodId);
                 if (prod) {
                     items.push({ productId: prod.id, name: prod.name, category: prod.category, qty, subtotalPrice: qty * prod.price, subtotalCost: qty * prod.cost, unitCost: prod.cost });
-                    totalSales += qty * prod.price;
+                    subtotal += qty * prod.price;
                     totalCost += qty * prod.cost;
                 }
             });
 
-            orders.push({ id: Date.now().toString(), customerName, items, totalSales, totalCost, delivered: false });
+            const applicable = getApplicablePromotions();
+            const selectedPromo = applicable.find(promo => promo.id === selectedPromotionId) || null;
+            const promotionResult = selectedPromo ? calculatePromotion(selectedPromo) : null;
+            const discount = promotionResult ? Math.min(promotionResult.discount, subtotal) : 0;
+            const totalSales = Math.max(0, subtotal - discount);
+
+            const orderData = {
+                customerName,
+                items,
+                subtotal,
+                discount,
+                totalSales,
+                totalCost,
+                promotion: selectedPromo ? {
+                    id: selectedPromo.id,
+                    name: selectedPromo.name,
+                    type: selectedPromo.type,
+                    category: selectedPromo.category
+                } : null,
+                delivered: false
+            };
+
+            if (editingOrderId) {
+                const index = orders.findIndex(order => order.id === editingOrderId);
+                if (index >= 0) {
+                    orderData.id = editingOrderId;
+                    orderData.createdAt = orders[index].createdAt || new Date().toISOString();
+                    orderData.delivered = Boolean(orders[index].delivered);
+                    orders[index] = orderData;
+                } else {
+                    orderData.id = Date.now().toString();
+                    orderData.createdAt = new Date().toISOString();
+                    orders.push(orderData);
+                }
+            } else {
+                orderData.id = Date.now().toString();
+                orderData.createdAt = new Date().toISOString();
+                orders.push(orderData);
+            }
+
             saveData();
-            currentOrderItems = {};
-            document.getElementById('order-customer-name').value = '';
-            renderCategoriesGrid();
-            updateOrderSummaryUI();
+            cancelOrderEdit(true);
             renderSavedOrdersList();
             renderPanaderoConsolidated();
-            showToast('Pedido guardado correctamente');
+            showToast(wasEditing ? 'Pedido actualizado' : 'Pedido guardado correctamente', 'success');
+        }
+
+        function cancelOrderEdit(silent = false) {
+            editingOrderId = null;
+            currentOrderItems = {};
+            selectedPromotionId = '';
+
+            const nameInput = document.getElementById('order-customer-name');
+            if (nameInput) nameInput.value = '';
+            const title = document.getElementById('form-order-title');
+            if (title) title.textContent = 'Nuevo Pedido';
+            const cancelButton = document.getElementById('btn-cancel-edit-order');
+            if (cancelButton) cancelButton.classList.add('hidden');
+
+            renderCategoriesGrid();
+            updateOrderSummaryUI();
+            if (!silent) showToast('Edición cancelada');
         }
 
         function renderSavedOrdersList() {
             const container = document.getElementById('saved-orders-list');
             container.innerHTML = '';
-            orders.forEach(o => {
-                const div = document.createElement('div');
-                div.className = 'p-3 bg-slate-50 border rounded-xl flex justify-between items-center text-xs';
-                div.innerHTML = `<div><span class="font-bold">${escapeHtml(o.customerName)}</span></div><span class="font-black text-amber-700">$${o.totalSales.toFixed(2)}</span>`;
-                container.appendChild(div);
+
+            if (!orders.length) {
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">No hay pedidos guardados.</p>';
+                return;
+            }
+
+            orders.forEach(order => {
+                const items = Array.isArray(order.items) ? order.items : [];
+                const pieces = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+                const delivered = Boolean(order.delivered);
+                const createdAt = order.createdAt ? new Date(order.createdAt) : new Date(Number(order.id) || Date.now());
+                const timeLabel = Number.isNaN(createdAt.getTime())
+                    ? ''
+                    : createdAt.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'order-swipe relative overflow-hidden rounded-xl border border-slate-200';
+                wrapper.dataset.orderId = order.id;
+
+                wrapper.innerHTML = `
+                    <div class="absolute inset-0 flex text-[10px] font-extrabold text-white">
+                        <div class="w-1/2 bg-emerald-600 flex items-center justify-start pl-4 gap-1">
+                            <i class="fa-solid fa-check"></i> ENTREGAR
+                        </div>
+                        <div class="w-1/2 bg-rose-600 flex items-center justify-end pr-4 gap-1">
+                            ELIMINAR <i class="fa-solid fa-trash"></i>
+                        </div>
+                    </div>
+                    <div class="order-swipe-content relative p-3 flex justify-between items-center gap-2 text-xs cursor-pointer ${delivered ? 'bg-emerald-50' : 'bg-slate-50'}">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-bold text-slate-800 truncate">${escapeHtml(order.customerName)}</span>
+                                ${delivered
+                                    ? '<span class="text-[9px] font-extrabold bg-emerald-600 text-white px-1.5 py-0.5 rounded-full">ENTREGADO</span>'
+                                    : '<span class="text-[9px] font-extrabold bg-amber-500 text-slate-950 px-1.5 py-0.5 rounded-full">PENDIENTE</span>'}
+                            </div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">
+                                ${timeLabel}${timeLabel ? ' · ' : ''}${pieces} pzas${order.promotion ? ` · ${escapeHtml(order.promotion.name)}` : ''}
+                            </div>
+                        </div>
+                        <span class="font-black text-amber-700 shrink-0">$${(Number(order.totalSales) || 0).toFixed(2)}</span>
+                    </div>`;
+
+                container.appendChild(wrapper);
+                attachOrderSwipe(wrapper, order.id);
             });
+        }
+
+        function attachOrderSwipe(wrapper, orderId) {
+            const content = wrapper.querySelector('.order-swipe-content');
+            if (!content) return;
+
+            let startX = 0;
+            let startY = 0;
+            let deltaX = 0;
+            let dragging = false;
+            let moved = false;
+            const threshold = 60;
+            const maxOffset = 90;
+
+            content.addEventListener('pointerdown', event => {
+                if (event.pointerType === 'mouse' && event.button !== 0) return;
+                startX = event.clientX;
+                startY = event.clientY;
+                deltaX = 0;
+                dragging = true;
+                moved = false;
+                content.classList.add('dragging');
+                content.setPointerCapture(event.pointerId);
+            });
+
+            content.addEventListener('pointermove', event => {
+                if (!dragging) return;
+                const dx = event.clientX - startX;
+                const dy = event.clientY - startY;
+                if (Math.abs(dx) > 6 || Math.abs(dy) > 6) moved = true;
+                if (Math.abs(dy) > Math.abs(dx)) return;
+                deltaX = Math.max(-maxOffset, Math.min(maxOffset, dx));
+                content.style.transform = `translateX(${deltaX}px)`;
+            });
+
+            const finish = (commit) => {
+                if (!dragging) return;
+                dragging = false;
+                content.classList.remove('dragging');
+                content.style.transform = '';
+
+                if (!commit) {
+                    deltaX = 0;
+                    return;
+                }
+
+                if (deltaX >= threshold) {
+                    toggleOrderDelivered(orderId);
+                } else if (deltaX <= -threshold) {
+                    deleteOrder(orderId);
+                } else if (!moved) {
+                    openTicket(orderId);
+                }
+
+                deltaX = 0;
+            };
+
+            content.addEventListener('pointerup', () => finish(true));
+            content.addEventListener('pointercancel', () => finish(false));
+        }
+
+        function toggleOrderDelivered(orderId) {
+            const order = orders.find(item => item.id === orderId);
+            if (!order) return;
+            order.delivered = !order.delivered;
+            saveData();
+            renderSavedOrdersList();
+            showToast(order.delivered ? 'Pedido marcado como entregado' : 'Pedido marcado como pendiente', 'success');
+        }
+
+        function deleteOrder(orderId) {
+            const order = orders.find(item => item.id === orderId);
+            if (!order) return;
+
+            if (editingOrderId === orderId) cancelOrderEdit(true);
+
+            orders = orders.filter(item => item.id !== orderId);
+            saveData();
+            renderSavedOrdersList();
+            renderPanaderoConsolidated();
+            showToast(`Pedido de ${order.customerName} eliminado`, 'success');
         }
 
         // ==========================================
@@ -1310,12 +1695,288 @@ const DEFAULT_PRODUCTS = [
             navigator.clipboard.writeText(text).then(() => showToast('Reporte copiado para WhatsApp'));
         }
 
-        function confirmResetDay() {
-            orders = [];
+        function openTicket(orderId) {
+            const order = orders.find(item => item.id === orderId);
+            if (!order) return;
+            activeTicketOrderId = orderId;
+
+            const timestamp = order.createdAt ? new Date(order.createdAt) : new Date(Number(order.id) || Date.now());
+            document.getElementById('ticket-date').innerText = Number.isNaN(timestamp.getTime())
+                ? ''
+                : timestamp.toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
+            document.getElementById('ticket-customer-name').innerText = order.customerName;
+
+            const badge = document.getElementById('ticket-status-badge');
+            badge.innerText = order.delivered ? 'ENTREGADO' : 'PENDIENTE';
+            badge.className = `px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${order.delivered ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`;
+
+            const itemsContainer = document.getElementById('ticket-items-list');
+            itemsContainer.innerHTML = '';
+            (Array.isArray(order.items) ? order.items : []).forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'flex justify-between gap-2 py-1';
+                row.innerHTML = `<span>${item.qty}x ${escapeHtml(item.name)}</span><span class="font-bold">$${(Number(item.subtotalPrice) || 0).toFixed(2)}</span>`;
+                itemsContainer.appendChild(row);
+            });
+
+            const discount = Number(order.discount) || 0;
+            const savingsRow = document.getElementById('ticket-savings-row');
+            if (discount > 0) {
+                savingsRow.classList.remove('hidden');
+                savingsRow.classList.add('flex');
+                document.getElementById('ticket-savings').innerText = `-$${discount.toFixed(2)}`;
+            } else {
+                savingsRow.classList.add('hidden');
+                savingsRow.classList.remove('flex');
+            }
+
+            document.getElementById('ticket-total').innerText = `$${(Number(order.totalSales) || 0).toFixed(2)}`;
+            document.getElementById('modal-order-ticket').classList.remove('hidden');
+        }
+
+        function closeTicketModal() {
+            activeTicketOrderId = null;
+            document.getElementById('modal-order-ticket').classList.add('hidden');
+        }
+
+        function editActiveTicket() {
+            if (activeTicketOrderId) editOrderFromTicket(activeTicketOrderId);
+        }
+
+        function editOrderFromTicket(orderId) {
+            const order = orders.find(item => item.id === orderId);
+            if (!order) return;
+
+            closeTicketModal();
+            currentOrderItems = {};
+            (Array.isArray(order.items) ? order.items : []).forEach(item => {
+                if (item.productId) currentOrderItems[item.productId] = item.qty;
+            });
+            document.getElementById('order-customer-name').value = order.customerName;
+            editingOrderId = order.id;
+            document.getElementById('form-order-title').textContent = 'Editar Pedido';
+            document.getElementById('btn-cancel-edit-order').classList.remove('hidden');
+            selectedPromotionId = order.promotion ? order.promotion.id : '';
+            renderCategoriesGrid();
+            updateOrderSummaryUI();
+            showToast('Pedido cargado para editar');
+        }
+
+        function createPromotionCard(promo, index) {
+            const isQuantity = promo.type === 'cantidad_precio';
+            const card = document.createElement('div');
+            card.className = 'promotion-card p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-2';
+            card.dataset.promoId = promo.id || '';
+
+            const categoryOptions = `<option value="__ALL__" ${promo.category === '__ALL__' ? 'selected' : ''}>Toda la orden</option>` + categories
+                .map(cat => `<option value="${escapeHtml(cat)}" ${cat === promo.category ? 'selected' : ''}>${escapeHtml(cat)}</option>`)
+                .join('');
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between gap-2">
+                    <span class="promotion-title text-xs font-bold text-slate-700">Promoción ${index + 1}</span>
+                    <div class="flex items-center gap-3">
+                        <label class="flex items-center gap-1 text-[11px] text-slate-600">
+                            <input type="checkbox" data-field="active" ${promo.active ? 'checked' : ''} class="accent-amber-600"> Activa
+                        </label>
+                        <button type="button" onclick="removePromotionCard(this)" class="text-rose-500 hover:text-rose-700 text-xs" title="Eliminar promoción">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <input data-field="name" type="text" value="${escapeHtml(promo.name)}" placeholder="Nombre de la promoción"
+                    class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs">
+                <div class="grid grid-cols-2 gap-2">
+                    <select data-field="type" onchange="togglePromoFields(this)"
+                        class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs">
+                        <option value="cantidad_precio" ${isQuantity ? 'selected' : ''}>Precio por cantidad</option>
+                        <option value="porcentaje" ${!isQuantity ? 'selected' : ''}>Porcentaje</option>
+                    </select>
+                    <select data-field="category"
+                        class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs">
+                        ${categoryOptions}
+                    </select>
+                </div>
+                <div data-fields="qty" class="grid grid-cols-2 gap-2 ${isQuantity ? '' : 'hidden'}">
+                    <div>
+                        <label class="block text-[10px] text-slate-500 mb-0.5">Piezas</label>
+                        <input data-field="qty" type="number" min="2" value="${promo.qty > 0 ? promo.qty : ''}"
+                            class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-500 mb-0.5">Precio total</label>
+                        <input data-field="price" type="number" min="0" step="0.5" value="${promo.price > 0 ? promo.price : ''}"
+                            class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs">
+                    </div>
+                </div>
+                <div data-fields="percent" class="grid grid-cols-2 gap-2 ${isQuantity ? 'hidden' : ''}">
+                    <div>
+                        <label class="block text-[10px] text-slate-500 mb-0.5">Descuento %</label>
+                        <input data-field="percent" type="number" min="1" max="100" value="${promo.percent > 0 ? promo.percent : ''}"
+                            class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-500 mb-0.5">Mínimo $</label>
+                        <input data-field="min" type="number" min="0" step="0.5" value="${promo.min > 0 ? promo.min : 0}"
+                            class="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs">
+                    </div>
+                </div>`;
+
+            return card;
+        }
+
+        function renderPromotionsEditor() {
+            const container = document.getElementById('promotions-editor');
+            container.innerHTML = '';
+            promotions.forEach((promo, index) => {
+                container.appendChild(createPromotionCard(promo, index));
+            });
+            updatePromotionCardTitles();
+        }
+
+        function updatePromotionCardTitles() {
+            document.querySelectorAll('#promotions-editor .promotion-card').forEach((card, index) => {
+                const title = card.querySelector('.promotion-title');
+                if (title) title.textContent = `Promoción ${index + 1}`;
+            });
+        }
+
+        function togglePromoFields(select) {
+            const card = select.closest('.promotion-card');
+            if (!card) return;
+            const type = select.value;
+            card.querySelector('[data-fields="qty"]').classList.toggle('hidden', type !== 'cantidad_precio');
+            card.querySelector('[data-fields="percent"]').classList.toggle('hidden', type !== 'porcentaje');
+        }
+
+        function addPromotionDraft() {
+            const container = document.getElementById('promotions-editor');
+            const index = container.querySelectorAll('.promotion-card').length;
+            const blank = {
+                id: '',
+                name: `Promoción ${index + 1}`,
+                type: 'cantidad_precio',
+                category: categories[0] || 'Pastes',
+                qty: 3,
+                price: 70,
+                percent: 0,
+                min: 0,
+                active: true
+            };
+            const card = createPromotionCard(blank, index);
+            container.appendChild(card);
+            updatePromotionCardTitles();
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function removePromotionCard(button) {
+            const cards = document.querySelectorAll('#promotions-editor .promotion-card');
+            if (cards.length <= 1) {
+                showToast('Debe quedar al menos una promoción', 'error');
+                return;
+            }
+            const card = button.closest('.promotion-card');
+            if (card) card.remove();
+            updatePromotionCardTitles();
+        }
+
+        function savePromotionsFromModal() {
+            const cards = [...document.querySelectorAll('#promotions-editor .promotion-card')];
+            if (!cards.length) {
+                showToast('Agrega al menos una promoción', 'error');
+                return;
+            }
+
+            const next = [];
+
+            for (const [index, card] of cards.entries()) {
+                const field = name => card.querySelector(`[data-field="${name}"]`);
+                const type = field('type').value;
+                const name = field('name').value.trim() || `Promoción ${index + 1}`;
+                const category = field('category').value;
+                const active = field('active').checked;
+                const existingId = card.dataset.promoId || '';
+                const id = existingId || `promo_${Date.now()}_${index}`;
+
+                if (type === 'cantidad_precio') {
+                    const qty = Number.parseInt(field('qty').value, 10);
+                    const price = Number.parseFloat(field('price').value);
+                    if (!Number.isInteger(qty) || qty < 2 || !(price > 0)) {
+                        showToast(`Completa cantidad y precio de la promoción ${index + 1}`, 'error');
+                        return;
+                    }
+                    next.push({ id, name, type, category, qty, price, percent: 0, min: 0, active });
+                } else {
+                    const percent = Number.parseFloat(field('percent').value);
+                    const min = Number.parseFloat(field('min').value) || 0;
+                    if (!(percent > 0) || percent > 100) {
+                        showToast(`El porcentaje de la promoción ${index + 1} debe estar entre 1 y 100`, 'error');
+                        return;
+                    }
+                    next.push({ id, name, type, category, qty: 0, price: 0, percent, min, active });
+                }
+            }
+
+            promotions = next;
+            selectedPromotionId = '';
             saveData();
-            renderSavedOrdersList();
-            renderPanaderoConsolidated();
-            showToast('Día reiniciado');
+            closePromoManagerModal();
+            updateOrderSummaryUI();
+            showToast('Promociones guardadas', 'success');
+        }
+
+        function resetPromotions() {
+            promotions = DEFAULT_PROMOTIONS.map(promo => ({ ...promo }));
+            selectedPromotionId = '';
+            saveData();
+            renderPromotionsEditor();
+            updateOrderSummaryUI();
+            showToast('Promociones restablecidas');
+        }
+
+        function openPromoManagerModal() {
+            renderPromotionsEditor();
+            document.getElementById('modal-promotions').classList.remove('hidden');
+        }
+
+        function closePromoManagerModal() {
+            document.getElementById('modal-promotions').classList.add('hidden');
+        }
+
+        function confirmResetDay() {
+            openConfirmModal(
+                '¿Reiniciar el día?',
+                'Se eliminarán todos los pedidos guardados. Los productos, categorías y promociones no se borran.',
+                () => {
+                    orders = [];
+                    selectedPromotionId = '';
+                    cancelOrderEdit(true);
+                    saveData();
+                    renderSavedOrdersList();
+                    renderPanaderoConsolidated();
+                    closeConfirmModal();
+                    showToast('Día reiniciado', 'success');
+                }
+            );
+        }
+
+        function openConfirmModal(title, message, onConfirm) {
+            document.getElementById('confirm-modal-title').innerText = title;
+            document.getElementById('confirm-modal-msg').innerText = message;
+            pendingConfirmAction = onConfirm;
+            document.getElementById('modal-confirm').classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            pendingConfirmAction = null;
+            document.getElementById('modal-confirm').classList.add('hidden');
+        }
+
+        function executeConfirmAction() {
+            const action = pendingConfirmAction;
+            pendingConfirmAction = null;
+            document.getElementById('modal-confirm').classList.add('hidden');
+            if (typeof action === 'function') action();
         }
 
         function showToast(msg, type = 'info') {
