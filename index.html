@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verona - Gestor de Pedidos</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        bakery: {
+                            50: '#fffbeb',
+                            100: '#fef3c7',
+                            200: '#fde68a',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            700: '#b45309',
+                            800: '#92400e',
+                            900: '#78350f',
+                            dark: '#451a03'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out forwards;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(217, 119, 6, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d97706;
+            border-radius: 4px;
+        }
+        body.theme-warm {
+            background-color: rgba(254, 243, 199, 0.3);
+            color: #1e293b;
+        }
+        body.theme-slate {
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+        body.theme-dark {
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        body.theme-dark .bg-white {
+            background-color: #1e293b !important;
+            color: #f8fafc !important;
+            border-color: #334155 !important;
+        }
+        body.theme-dark .text-slate-800,
+        body.theme-dark .text-slate-900,
+        body.theme-dark .text-slate-700 {
+            color: #f1f5f9 !important;
+        }
+        body.theme-dark .text-slate-600,
+        body.theme-dark .text-slate-500 {
+            color: #94a3b8 !important;
+        }
+        body.theme-dark input, body.theme-dark select, body.theme-dark textarea {
+            background-color: #0f172a !important;
+            color: #f8fafc !important;
+            border-color: #475569 !important;
+        }
+        .dropdown-menu {
+            transform-origin: top right;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .dropdown-menu.hidden-menu {
+            opacity: 0;
+            transform: scale(0.92) translateY(-8px);
+            pointer-events: none;
+        }
+        .dropdown-menu.visible-menu {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body id="app-body" class="theme-warm font-sans min-h-screen flex flex-col antialiased">
+
+    <!-- Header Principal -->
+    <header class="bg-gradient-to-r from-bakery-900 via-bakery-800 to-bakery-900 text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 py-3 sm:px-6 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="bg-amber-500/20 p-2.5 rounded-2xl border border-amber-400/30 shrink-0">
+                    <i class="fa-solid font-bold fa-wheat-awn text-amber-400 text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight leading-none text-amber-100">Verona</h1>
+                    <p class="text-xs text-amber-300/80 font-medium mt-0.5">Control de Ventas y Pedidos</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <nav class="flex bg-bakery-950/40 p-1 rounded-xl border border-amber-500/20 overflow-x-auto">
+                    <button onclick="switchTab('pedidos')" id="tab-btn-pedidos" class="tab-btn px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 bg-amber-500 text-slate-950 shadow-md">
+                        <i class="fa-solid fa-cart-shopping"></i> <span class="hidden xs:inline">Pedidos</span>
+                    </button>
+                    <button onclick="switchTab('panadero')" id="tab-btn-panadero" class="tab-btn px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 text-amber-200 hover:text-white hover:bg-white/5">
+                        <i class="fa-solid fa-clipboard-list text-amber-400"></i> <span class="hidden xs:inline">Para Panadero</span>
+                        <span id="badge-pedidos" class="ml-1 bg-amber-400 text-bakery-900 text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full font-bold">0</span>
+                    </button>
+                    <button onclick="switchTab('productos')" id="tab-btn-productos" class="tab-btn px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 text-amber-200 hover:text-white hover:bg-white/5">
+                        <i class="fa-solid fa-store"></i> <span class="hidden xs:inline">Catálogo</span>
+                    </button>
+                </nav>
+
+                <div class="relative">
+                    <button id="btn-quick-menu" onclick="toggleQuickMenu(event)" 
+                        class="w-10 h-10 rounded-xl bg-bakery-950/40 hover:bg-amber-500/20 border border-amber-500/30 text-amber-200 hover:text-white flex items-center justify-center transition shadow-sm active:scale-95"
+                        title="Acciones Rápidas y Opciones">
+                        <i class="fa-solid fa-ellipsis-vertical text-lg"></i>
+                    </button>
+
+                    <div id="quick-menu-dropdown" class="dropdown-menu hidden-menu absolute right-0 mt-2 w-64 bg-slate-900 text-slate-100 rounded-2xl shadow-2xl border border-slate-700/80 py-2 z-50 divide-y divide-slate-800">
+                        <div class="py-1">
+                            <button onclick="closeQuickMenu(); confirmResetDay();" class="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-rose-500/20 hover:text-rose-300 transition flex items-center gap-2.5 text-rose-400">
+                                <i class="fa-solid fa-rotate-right text-sm w-4"></i>
+                                <span>Reiniciar día</span>
+                            </button>
+                        </div>
+                        <div class="py-1">
+                            <div class="px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-400">Configuraciones</div>
+                            <button onclick="closeQuickMenu(); openEditTemplateModal();" class="w-full text-left px-4 py-2 text-xs font-medium hover:bg-slate-800 hover:text-amber-300 transition flex items-center gap-2.5 text-slate-300">
+                                <i class="fa-solid fa-pen-to-square text-xs w-4 text-amber-500"></i>
+                                <span>Editar mensaje personalizado</span>
+                            </button>
+                            <button onclick="closeQuickMenu(); openThemeModal();" class="w-full text-left px-4 py-2 text-xs font-medium hover:bg-slate-800 hover:text-amber-300 transition flex items-center gap-2.5 text-slate-300">
+                                <i class="fa-solid fa-palette text-xs w-4 text-amber-500"></i>
+                                <span>Cambiar tema</span>
+                            </button>
+                        </div>
+                        <div class="py-1">
+                            <button onclick="closeQuickMenu(); openCategoryManagerModal();" class="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-800 hover:text-amber-300 transition flex items-center gap-2.5 text-slate-200">
+                                <i class="fa-solid fa-folder-plus text-sm w-4 text-amber-400"></i>
+                                <span>Administrar categorías</span>
+                            </button>
+                        </div>
+                        <div class="py-1">
+                            <button onclick="closeQuickMenu(); openAboutModal();" class="w-full text-left px-4 py-2.5 text-xs font-semibold hover:bg-slate-800 hover:text-amber-300 transition flex items-center gap-2.5 text-amber-200">
+                                <i class="fa-solid fa-circle-info text-sm w-4 text-amber-400"></i>
+                                <span>Acerca de</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="max-w-6xl mx-auto px-4 py-6 sm:px-6 flex-grow w-full">
+        <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+        <!-- PESTAÑA 1: PEDIDOS -->
+        <section id="tab-pedidos" class="tab-content active space-y-6">
+            <!-- BANNER IA: PEGAR MENSAJE DE WHATSAPP / MESSENGER -->
+            <div class="bg-gradient-to-r from-slate-900 via-bakery-900 to-slate-900 rounded-2xl p-4 text-white shadow-md border border-amber-500/30 mb-5">
+                <div class="flex items-center gap-2 mb-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                    <i class="fa-solid fa-wand-magic-sparkles text-sm"></i> Intérprete de Pedidos IA (WhatsApp / Chat)
+                </div>
+                <p class="text-xs text-slate-300 mb-3">Pega directamente el mensaje del cliente y la IA armará el pedido automáticamente detectando si son Pastes, Pizzas, Pan de muerto, etc.</p>
+                
+                <div class="space-y-2">
+                    <textarea id="ai-chat-input" rows="3" placeholder="Ej: Hola me das 3 pastes de hawaino, 2 de papa con carne, 1 pizza de pepperoni y 5 pan de muerto a nombre de Carlos..."
+                        class="w-full p-3 rounded-xl border border-slate-700 bg-slate-950/80 text-xs text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 font-sans"></textarea>
+                    
+                    <div class="flex justify-end">
+                        <button type="button" onclick="parseOrderWithAI()" id="btn-parse-ai" 
+                            class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2 shadow-md disabled:opacity-60 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-robot"></i> Cargar Pedido con IA
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-7 space-y-5">
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-amber-100">
+                        <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-user-pen text-bakery-600"></i>
+                                <span id="form-order-title">Nuevo Pedido</span>
+                            </h2>
+                            <button id="btn-cancel-edit-order" onclick="cancelOrderEdit()" class="hidden text-xs text-rose-600 font-semibold hover:underline">
+                                Cancelar Edición
+                            </button>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Nombre del Cliente *</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                <input type="text" id="order-customer-name" placeholder="Ej. Doña María, Don Carlos, Juan Perez..." 
+                                    class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-bakery-500 focus:border-transparent text-slate-800 font-medium placeholder:text-slate-400 text-sm">
+                            </div>
+                        </div>
+
+                        <div class="mb-3 flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-600 uppercase tracking-wider">Selecciona una Categoría para agregar productos</label>
+                        </div>
+
+                        <div id="order-categories-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-5 space-y-5">
+                    <div class="bg-slate-900 text-white rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                        <div class="absolute -right-6 -bottom-6 opacity-10 text-slate-100 pointer-events-none">
+                            <i class="fa-solid fa-receipt text-9xl"></i>
+                        </div>
+
+                        <h3 class="text-sm font-bold uppercase tracking-wider text-amber-400 mb-3 flex items-center justify-between">
+                            <span>Resumen de la Orden</span>
+                            <span id="current-items-count" class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-normal">0 pzas</span>
+                        </h3>
+
+                        <div id="current-order-items" class="space-y-2 max-h-44 overflow-y-auto pr-1 text-xs border-b border-slate-800 pb-3 min-h-[80px]">
+                            <p class="text-slate-500 italic text-center py-4">No se han añadido productos aún.</p>
+                        </div>
+
+                        <div class="mt-3 space-y-1.5">
+                            <div id="savings-row" class="hidden justify-between items-center text-xs text-emerald-400 font-medium">
+                                <span><i class="fa-solid fa-tag mr-1"></i> Descuento de Promociones:</span>
+                                <span id="order-savings">-$0.00</span>
+                            </div>
+                            <div class="flex justify-between items-baseline pt-1">
+                                <span class="text-sm font-semibold text-slate-300">Total a Cobrar:</span>
+                                <span id="order-total" class="text-2xl font-extrabold text-amber-400">$0.00</span>
+                            </div>
+                        </div>
+
+                        <button onclick="saveCurrentOrder()" class="mt-4 w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl transition shadow-md hover:shadow-amber-500/20 active:scale-[0.99] flex items-center justify-center gap-2 text-sm">
+                            <i class="fa-solid fa-floppy-disk"></i> Guardar Pedido
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-amber-100">
+                        <h3 class="text-base font-bold text-slate-800 mb-3 flex items-center justify-between">
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid fa-list-check text-amber-600"></i> Pedidos Guardados
+                            </span>
+                            <span id="saved-orders-count" class="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">0</span>
+                        </h3>
+                        <div id="saved-orders-list" class="space-y-3 max-h-80 overflow-y-auto pr-1"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PESTAÑA 2: PANADERO -->
+        <section id="tab-panadero" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-amber-100 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-sack-dollar"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Venta Total Esperada</p>
+                        <h3 id="metric-total-sales" class="text-xl font-extrabold text-slate-800">$0.00</h3>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-amber-100 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Costo Pagar al Panadero</p>
+                        <h3 id="metric-total-cost" class="text-xl font-extrabold text-slate-800">$0.00</h3>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Ganancia Est. Vendedor</p>
+                        <h3 id="metric-total-profit" class="text-xl font-extrabold text-emerald-600">$0.00</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-amber-100 overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-clipboard-check text-bakery-600"></i> Pedido Consolidado Diario
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Suma total acumulada de piezas solicitadas por todos los clientes.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="copyPanaderoReport()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition shadow-sm">
+                            <i class="fa-brands fa-whatsapp text-lg"></i> Copiar para WhatsApp
+                        </button>
+                        <button onclick="confirmResetDay()" class="bg-slate-200 hover:bg-rose-100 hover:text-rose-700 text-slate-600 font-semibold px-3 py-2 rounded-xl text-xs sm:text-sm transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate-right"></i> Reiniciar Día
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100/80 text-slate-600 uppercase text-[11px] tracking-wider font-bold">
+                                <th class="py-3 px-4">Producto</th>
+                                <th class="py-3 px-4">Categoría</th>
+                                <th class="py-3 px-4 text-center">Piezas Totales</th>
+                                <th class="py-3 px-4 text-right">Costo Unitario</th>
+                                <th class="py-3 px-4 text-right">Costo Total Panadero</th>
+                                <th class="py-3 px-4 text-right">Venta Acumulada</th>
+                            </tr>
+                        </thead>
+                        <tbody id="panadero-summary-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+
+                <div id="panadero-empty-msg" class="p-8 text-center text-slate-400 hidden">
+                    <i class="fa-solid fa-basket-shopping text-4xl mb-2 text-slate-300"></i>
+                    <p class="font-medium">No hay pedidos guardados en el día de hoy.</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 rounded-2xl p-5 text-slate-200 shadow-sm border border-slate-800 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                            <i class="fa-solid fa-eye"></i> Vista Previa Mensaje para Panadero
+                        </h3>
+                        <button onclick="openEditTemplateModal()" class="text-[11px] text-amber-400/80 hover:text-amber-300 font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-pen-to-square"></i> Editar plantilla
+                        </button>
+                    </div>
+                    <pre id="whatsapp-preview-text" class="bg-slate-950 p-4 rounded-xl text-xs font-mono text-emerald-400 whitespace-pre-wrap overflow-x-auto border border-slate-800 max-h-56"></pre>
+                </div>
+                <button onclick="copyPanaderoReport()" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
+                    <i class="fa-brands fa-whatsapp text-base"></i> Copiar Mensaje
+                </button>
+            </div>
+        </section>
+
+        <!-- PESTAÑA 3: CATÁLOGO -->
+        <section id="tab-productos" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-5">
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-amber-100 sticky top-24 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span id="product-form-title" class="flex items-center gap-2">
+                                    <i class="fa-solid fa-plus-circle text-bakery-600"></i> Nuevo Producto
+                                </span>
+                            </h2>
+                            <button id="btn-cancel-edit-prod" onclick="cancelProductEdit()" class="hidden text-xs text-rose-600 font-semibold hover:underline">
+                                Cancelar Edición
+                            </button>
+                        </div>
+
+                        <div class="bg-amber-50/50 p-3 rounded-xl border border-amber-200/80 flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-700">Categorías personalizadas:</span>
+                            <button onclick="openCategoryManagerModal()" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-2.5 py-1 rounded-lg transition flex items-center gap-1">
+                                <i class="fa-solid fa-folder-plus"></i> Gestionar Categorías
+                            </button>
+                        </div>
+
+                        <form id="form-product" onsubmit="handleProductSubmit(event)" class="space-y-4">
+                            <input type="hidden" id="prod-id">
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Nombre / Etiqueta *</label>
+                                <input type="text" id="prod-name" required placeholder="Ej. Paste de Papa con Carne"
+                                    class="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-bakery-500 focus:border-transparent text-sm text-slate-800 font-medium">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Categoría *</label>
+                                <select id="prod-category" onchange="onCategoryChange()" required class="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-bakery-500 focus:border-transparent text-sm text-slate-800 font-medium bg-white">
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Precio Compra *</label>
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-2 text-slate-400 text-sm">$</span>
+                                        <input type="number" step="0.50" min="0" id="prod-cost" required placeholder="12.00"
+                                            class="w-full pl-7 pr-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-bakery-500 text-sm text-slate-800 font-medium">
+                                    </div>
+                                    <span class="text-[10px] text-slate-400">Costo del Panadero</span>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Precio Venta *</label>
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-2 text-slate-400 text-sm">$</span>
+                                        <input type="number" step="0.50" min="0" id="prod-price" required placeholder="20.00"
+                                            class="w-full pl-7 pr-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-bakery-500 text-sm text-slate-800 font-medium">
+                                    </div>
+                                    <span class="text-[10px] text-slate-400">Precio Individual público</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-amber-50/70 p-3.5 rounded-xl border border-amber-200/60 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-xs font-bold text-bakery-900 uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fa-solid fa-tags text-amber-600"></i> Promoción (Opcional)
+                                    </label>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Piezas (X)</label>
+                                        <input type="number" min="2" id="prod-promo-qty" placeholder="Ej. 3"
+                                            class="w-full px-3 py-1.5 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 text-sm text-slate-800 bg-white font-medium">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Precio Promo ($Y)</label>
+                                        <input type="number" step="0.50" min="0" id="prod-promo-price" placeholder="Ej. 50"
+                                            class="w-full px-3 py-1.5 rounded-lg border border-amber-200 focus:ring-2 focus:ring-amber-500 text-sm text-slate-800 bg-white font-medium">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-2">
+                                <button type="submit" id="btn-save-prod" class="w-full bg-bakery-600 hover:bg-bakery-700 text-white font-bold py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-2 text-sm">
+                                    <i class="fa-solid fa-plus"></i> Guardar Producto
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-7">
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-amber-100">
+                        <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-3">
+                            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-boxes-stacked text-bakery-600"></i> Catálogo Registrado
+                            </h2>
+                            <span id="catalog-count-badge" class="text-xs bg-slate-100 text-slate-600 font-bold px-2.5 py-1 rounded-full">0 items</span>
+                        </div>
+                        <div id="catalog-category-filters" class="flex gap-1.5 overflow-x-auto pb-3 mb-3 border-b border-slate-100"></div>
+                        <div id="catalog-items-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modales de Apoyo -->
+    <div id="modal-products-category" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-amber-100 overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="p-4 bg-amber-50 border-b border-amber-100 flex items-center justify-between">
+                <div>
+                    <h3 id="modal-category-title" class="font-bold text-base text-slate-800">Categoría</h3>
+                    <p class="text-xs text-slate-500">Haz clic en + para añadir productos al pedido actual</p>
+                </div>
+                <button onclick="closeCategoryProductsModal()" class="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center font-bold text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="modal-category-products-list" class="p-4 overflow-y-auto space-y-2.5 flex-grow"></div>
+            <div class="p-3 bg-slate-50 border-t border-slate-100 text-right">
+                <button onclick="closeCategoryProductsModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-5 py-2 rounded-xl text-xs transition">
+                    Aceptar / Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-manage-categories" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-amber-100 overflow-hidden">
+            <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+                <h3 class="font-bold text-sm text-amber-400 flex items-center gap-2"><i class="fa-solid fa-folder-plus"></i> Administrar Categorías</h3>
+                <button onclick="closeCategoryManagerModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <div class="flex gap-2">
+                    <input type="text" id="new-category-name" placeholder="Nueva categoría (Ej. Pan de muerto)" 
+                        class="flex-grow px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-amber-500 text-xs font-medium">
+                    <button onclick="addNewCategory()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-2 rounded-xl text-xs shrink-0 transition">Agregar</button>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase">Categorías existentes:</label>
+                    <div id="categories-manager-list" class="max-h-48 overflow-y-auto space-y-1.5 pr-1 text-xs"></div>
+                </div>
+            </div>
+            <div class="p-3 bg-slate-50 border-t border-slate-100 text-right">
+                <button onclick="closeCategoryManagerModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-order-ticket" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-amber-100 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-3.5 bg-slate-900 text-white flex items-center justify-between">
+                <h3 class="font-bold text-sm text-amber-400 flex items-center gap-2"><i class="fa-solid fa-receipt"></i> Ticket de Pedido</h3>
+                <button onclick="closeTicketModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-grow space-y-4 bg-amber-50/30 font-mono text-xs text-slate-800">
+                <div class="text-center border-b border-dashed border-slate-300 pb-3">
+                    <h4 class="font-extrabold text-base uppercase text-slate-900 tracking-wider">Verona</h4>
+                    <p id="ticket-date" class="text-[10px] text-slate-400 font-sans mt-1"></p>
+                </div>
+                <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200 font-sans">
+                    <div>
+                        <span class="text-[10px] text-slate-400 block uppercase font-bold">Cliente</span>
+                        <span id="ticket-customer-name" class="font-bold text-sm text-slate-800"></span>
+                    </div>
+                    <span id="ticket-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase"></span>
+                </div>
+                <div>
+                    <div class="flex justify-between border-b border-slate-300 pb-1 font-bold text-[11px] text-slate-500 uppercase">
+                        <span>Cant. / Producto</span>
+                        <span>Importe</span>
+                    </div>
+                    <div id="ticket-items-list" class="divide-y divide-dashed divide-slate-200 py-1 space-y-1"></div>
+                </div>
+                <div class="border-t border-dashed border-slate-300 pt-3 space-y-1 font-sans">
+                    <div id="ticket-savings-row" class="hidden justify-between text-xs text-emerald-600 font-medium">
+                        <span>Ahorro Promociones:</span><span id="ticket-savings"></span>
+                    </div>
+                    <div class="flex justify-between items-baseline pt-1">
+                        <span class="font-bold text-sm text-slate-700">TOTAL:</span>
+                        <span id="ticket-total" class="font-black text-xl text-amber-700 font-mono"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-3 bg-slate-50 border-t border-slate-100 flex gap-2">
+                <button id="ticket-btn-edit" onclick="" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5">Editar</button>
+                <button onclick="closeTicketModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 rounded-xl text-xs transition">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-ai-preview" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-amber-100 overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+                <h3 class="font-bold text-sm text-amber-400 flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> Pedido detectado por IA</h3>
+                <button onclick="closeAIPreview()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-grow space-y-4">
+                <div class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <div>
+                        <span class="text-[10px] text-amber-800 font-bold uppercase block">Cliente detectado</span>
+                        <span id="ai-preview-customer" class="font-bold text-sm text-slate-900"></span>
+                    </div>
+                    <span id="ai-preview-pieces" class="text-xs font-bold bg-amber-500 text-slate-950 px-2 py-0.5 rounded-full"></span>
+                </div>
+                <div id="ai-preview-items" class="space-y-2"></div>
+                <div id="ai-preview-warnings" class="hidden text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3"></div>
+                <label id="ai-preview-merge-row" class="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3 cursor-pointer">
+                    <input type="checkbox" id="ai-preview-merge" checked class="accent-amber-600">
+                    <span>Sumar al pedido actual (si lo desmarcas, se reemplaza)</span>
+                </label>
+            </div>
+            <div class="p-3 bg-slate-50 border-t border-slate-100 flex gap-2">
+                <button onclick="closeAIPreview()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 rounded-xl text-xs transition">Cancelar</button>
+                <button onclick="applyAIPreview()" id="btn-apply-ai-preview" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1.5"><i class="fa-solid fa-check"></i> Aplicar pedido</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-confirm" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-rose-100 overflow-hidden text-center p-6 space-y-4">
+            <div class="w-14 h-14 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-2xl mx-auto"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div>
+                <h3 id="confirm-modal-title" class="text-base font-bold text-slate-900">¿Estás seguro?</h3>
+                <p id="confirm-modal-msg" class="text-xs text-slate-500 mt-1"></p>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="closeConfirmModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition">Cancelar</button>
+                <button id="btn-modal-action-confirm" onclick="" class="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm">Sí</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-edit-template" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-amber-100 overflow-hidden">
+            <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+                <h3 class="font-bold text-sm text-amber-400"><i class="fa-solid fa-pen-to-square"></i> Plantilla WhatsApp</h3>
+                <button onclick="closeEditTemplateModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 space-y-3">
+                <textarea id="modal-template-input" rows="8" class="w-full p-3 rounded-xl border border-slate-200 font-mono text-xs text-slate-800 bg-slate-50/50"></textarea>
+                <div class="flex justify-between items-center pt-2">
+                    <button onclick="resetTemplateToDefault(); syncModalTemplateInput();" class="text-xs text-amber-700 font-semibold hover:underline">Restablecer</button>
+                    <div class="flex gap-2">
+                        <button onclick="closeEditTemplateModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition">Cancelar</button>
+                        <button onclick="saveModalTemplate()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-theme" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-amber-100 overflow-hidden">
+            <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+                <h3 class="font-bold text-sm text-amber-400"><i class="fa-solid fa-palette"></i> Tema Visual</h3>
+                <button onclick="closeThemeModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div onclick="setTheme('warm')" class="theme-option p-3.5 rounded-xl border-2 border-slate-200 cursor-pointer flex items-center justify-between bg-amber-50/40" data-theme="warm">
+                    <span class="font-bold text-sm text-slate-800">Cálido Panadería</span>
+                </div>
+                <div onclick="setTheme('dark')" class="theme-option p-3.5 rounded-xl border-2 border-slate-200 cursor-pointer flex items-center justify-between bg-slate-900 text-white" data-theme="dark">
+                    <span class="font-bold text-sm text-slate-100">Modo Oscuro</span>
+                </div>
+            </div>
+            <div class="p-3 bg-slate-50 border-t border-slate-100 text-right">
+                <button onclick="closeThemeModal()" class="bg-amber-500 text-slate-950 font-bold px-5 py-2 rounded-xl text-xs">Listo</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-about" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-amber-100 overflow-hidden text-center p-6 space-y-3">
+            <h3 class="text-lg font-bold text-amber-900">Verona App</h3>
+            <p class="text-xs text-slate-600">Creado por Nata Omaña</p>
+            <button onclick="closeAboutModal()" class="w-full bg-slate-900 text-amber-400 font-bold py-2 rounded-xl text-xs">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Script de Funcionalidad -->
+    <script>
+        // URL del backend: local en desarrollo, Render en producción.
+        // Puedes cambiarla sin editar el archivo con:
+        // localStorage.setItem('verona_backend_url', 'https://tu-servicio.onrender.com')
+        const BACKEND_URL = localStorage.getItem('verona_backend_url')
+            || ((location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+                ? 'http://localhost:3000'
+                : 'https://veronastore-bkend.onrender.com');
+
+        let pendingAIPreview = null;
+
+        function normalizeProductName(value) {
+            return String(value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim()
+                .replace(/\s+/g, ' ');
+        }
+
+        function setAIBtnLoading(isLoading, originalHTML) {
+            const btn = document.getElementById('btn-parse-ai');
+            if (!btn) return;
+            btn.disabled = isLoading;
+            btn.innerHTML = isLoading
+                ? '<i class="fa-solid fa-spinner fa-spin"></i> Analizando mensaje...'
+                : originalHTML;
+        }
+
+        async function parseOrderWithAI() {
+            const inputArea = document.getElementById('ai-chat-input');
+            const btn = document.getElementById('btn-parse-ai');
+            const text = inputArea.value.trim();
+
+            if (!text) {
+                showToast('Pega un mensaje de texto para interpretar', 'error');
+                inputArea.focus();
+                return;
+            }
+            if (text.length > 2000) {
+                showToast('El mensaje es demasiado largo (máximo 2000 caracteres)', 'error');
+                return;
+            }
+            if (!Array.isArray(products) || products.length === 0) {
+                showToast('Primero registra productos en el catálogo', 'error');
+                return;
+            }
+
+            const originalBtnText = btn.innerHTML;
+            setAIBtnLoading(true, originalBtnText);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/parse-order`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal,
+                    body: JSON.stringify({
+                        messageText: text,
+                        catalogProducts: products.map(p => ({
+                            id: String(p.id),
+                            name: p.name,
+                            category: p.category
+                        })),
+                        availableCategories: categories
+                    })
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(data.error || `El servidor respondió ${response.status}`);
+                }
+
+                // Validar que la IA solo devolvió productos que existen en el catálogo.
+                const catalogById = new Map(products.map(p => [String(p.id), p]));
+                const catalogByName = new Map(products.map(p => [normalizeProductName(p.name), p]));
+                const merged = new Map();
+
+                for (const item of Array.isArray(data.items) ? data.items : []) {
+                    const product = catalogById.get(String(item.productId))
+                        || catalogByName.get(normalizeProductName(item.productName));
+                    const qty = Number(item.qty);
+                    if (!product || !Number.isInteger(qty) || qty <= 0) continue;
+
+                    const safeQty = Math.min(qty, 99);
+                    const key = String(product.id);
+                    merged.set(key, {
+                        productId: key,
+                        name: product.name,
+                        category: product.category,
+                        qty: (merged.get(key)?.qty || 0) + safeQty
+                    });
+                }
+
+                const items = [...merged.values()];
+                if (items.length === 0) {
+                    showToast('No se detectaron productos del catálogo en el mensaje', 'error');
+                    return;
+                }
+
+                pendingAIPreview = {
+                    customerName: String(data.customerName || '').trim().slice(0, 80) || 'Cliente WhatsApp',
+                    items,
+                    warnings: Array.isArray(data.warnings)
+                        ? data.warnings.filter(Boolean).slice(0, 5)
+                        : []
+                };
+
+                renderAIPreview();
+                inputArea.value = '';
+            } catch (error) {
+                console.error('Error al conectar con el backend:', error);
+                if (error.name === 'AbortError') {
+                    showToast('La IA tardó demasiado. Revisa tu conexión e intenta de nuevo.', 'error');
+                } else {
+                    showToast(error.message || 'Error al conectar con el servidor de IA', 'error');
+                }
+            } finally {
+                clearTimeout(timeoutId);
+                setAIBtnLoading(false, originalBtnText);
+            }
+        }
+
+        function renderAIPreview() {
+            if (!pendingAIPreview) return;
+
+            const { customerName, items, warnings } = pendingAIPreview;
+            const totalPieces = items.reduce((sum, item) => sum + item.qty, 0);
+
+            document.getElementById('ai-preview-customer').textContent = customerName;
+            document.getElementById('ai-preview-pieces').textContent = `${totalPieces} pzas`;
+
+            const itemsContainer = document.getElementById('ai-preview-items');
+            itemsContainer.innerHTML = '';
+            items.forEach(item => {
+                const product = products.find(p => String(p.id) === String(item.productId));
+                const subtotal = (Number(product?.price) || 0) * item.qty;
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50';
+                row.innerHTML = `
+                    <div class="min-w-0">
+                        <p class="font-bold text-sm text-slate-800 truncate">${escapeHtml(item.name)}</p>
+                        <p class="text-[11px] text-slate-500">${escapeHtml(item.category || '')}</p>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <p class="font-extrabold text-sm text-amber-700">${item.qty} pzas</p>
+                        <p class="text-[11px] text-slate-500">$${subtotal.toFixed(2)}</p>
+                    </div>`;
+                itemsContainer.appendChild(row);
+            });
+
+            const warningsBox = document.getElementById('ai-preview-warnings');
+            if (warnings.length) {
+                warningsBox.textContent = warnings.join(' ');
+                warningsBox.classList.remove('hidden');
+            } else {
+                warningsBox.classList.add('hidden');
+            }
+
+            const hasCurrentOrder = Object.keys(currentOrderItems).length > 0;
+            document.getElementById('ai-preview-merge-row').classList.toggle('hidden', !hasCurrentOrder);
+            document.getElementById('ai-preview-merge').checked = true;
+            document.getElementById('modal-ai-preview').classList.remove('hidden');
+        }
+
+        function closeAIPreview() {
+            pendingAIPreview = null;
+            document.getElementById('modal-ai-preview').classList.add('hidden');
+        }
+
+        function applyAIPreview() {
+            if (!pendingAIPreview) return;
+
+            const merge = document.getElementById('ai-preview-merge').checked;
+            if (!merge) currentOrderItems = {};
+
+            pendingAIPreview.items.forEach(item => {
+                const product = products.find(p => String(p.id) === String(item.productId));
+                if (!product) return;
+                const key = String(product.id);
+                currentOrderItems[key] = (currentOrderItems[key] || 0) + item.qty;
+            });
+
+            const nameInput = document.getElementById('order-customer-name');
+            if (!nameInput.value.trim()) {
+                nameInput.value = pendingAIPreview.customerName;
+            }
+
+            const totalPieces = Object.values(currentOrderItems).reduce((sum, qty) => sum + qty, 0);
+            closeAIPreview();
+            renderCategoriesGrid();
+            updateOrderSummaryUI();
+            showToast(`Pedido cargado con IA: ${totalPieces} piezas en total`, 'success');
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-amber-500', 'text-slate-950', 'shadow-md');
+                btn.classList.add('text-amber-200', 'hover:text-white', 'hover:bg-white/5');
+            });
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-amber-200', 'hover:text-white', 'hover:bg-white/5');
+                activeBtn.classList.add('bg-amber-500', 'text-slate-950', 'shadow-md');
+            }
+            if (tabName === 'panadero') renderPanaderoConsolidated();
+        }
+
+        function toggleQuickMenu(event) {
+            if (event) event.stopPropagation();
+            const dropdown = document.getElementById('quick-menu-dropdown');
+            dropdown.classList.toggle('hidden-menu');
+            dropdown.classList.toggle('visible-menu');
+        }
+
+        function closeQuickMenu() {
+            const dropdown = document.getElementById('quick-menu-dropdown');
+            if (dropdown) {
+                dropdown.classList.remove('visible-menu');
+                dropdown.classList.add('hidden-menu');
+            }
+        }
+
+        window.addEventListener('click', function(e) {
+            const btn = document.getElementById('btn-quick-menu');
+            const dropdown = document.getElementById('quick-menu-dropdown');
+            if (dropdown && !dropdown.contains(e.target) && btn && !btn.contains(e.target)) {
+                closeQuickMenu();
+            }
+        });
+
+        function openEditTemplateModal() { syncModalTemplateInput(); document.getElementById('modal-edit-template').classList.remove('hidden'); }
+        function closeEditTemplateModal() { document.getElementById('modal-edit-template').classList.add('hidden'); }
+        function syncModalTemplateInput() { document.getElementById('modal-template-input').value = panaderoTemplate; }
+        function saveModalTemplate() {
+            panaderoTemplate = document.getElementById('modal-template-input').value;
+            localStorage.setItem('bakery_template', panaderoTemplate);
+            renderPanaderoConsolidated();
+            showToast('Plantilla guardada');
+            closeEditTemplateModal();
+        }
+
+        function openThemeModal() { document.getElementById('modal-theme').classList.remove('hidden'); }
+        function closeThemeModal() { document.getElementById('modal-theme').classList.add('hidden'); }
+        function openAboutModal() { document.getElementById('modal-about').classList.remove('hidden'); }
+        function closeAboutModal() { document.getElementById('modal-about').classList.add('hidden'); }
+
+        let currentTheme = localStorage.getItem('bakery_theme') || 'warm';
+        function setTheme(themeName) {
+            currentTheme = themeName;
+            localStorage.setItem('bakery_theme', themeName);
+            document.getElementById('app-body').className = `font-sans min-h-screen flex flex-col antialiased theme-${themeName}`;
+            if (themeName === 'dark') document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+            showToast('Tema actualizado');
+        }
+
+        // ==========================================
+        // DATOS E INICIALIZACIÓN
+        // ==========================================
+        const DEFAULT_CATEGORIES = ['Pastes', 'Pan de muerto', 'Pizzas'];
+
+        // Productos por defecto solicitados en la categoría Pastes y otras
+        // Productos por defecto solicitados en la categoría Pastes (obtenidos de las imágenes)
+const DEFAULT_PRODUCTS = [
+    // Pastes Dulces
+    { id: '1', name: 'Paste de Frutos Rojos', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '2', name: 'Paste de Piña con Queso', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '3', name: 'Paste de Fresa con Queso', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '4', name: 'Paste de Zarzamora con Queso', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '5', name: 'Paste de Crema Pastelera', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '6', name: 'Paste de Arroz con Leche', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '7', name: 'Paste de Manzana con Queso', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '8', name: 'Paste de Nutella', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '9', name: 'Paste de Cajeta', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    
+    // Pastes Salados
+    { id: '10', name: 'Paste Hawaino', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '11', name: 'Paste de Pepperoni', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '12', name: 'Paste de Jamón a la Crema', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '13', name: 'Paste de Picadillo', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '14', name: 'Paste de Choriqueso', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '15', name: 'Paste de Salchicha a la Crema', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '16', name: 'Paste de Frijol con Chorizo', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '17', name: 'Paste de Mole', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '18', name: 'Paste de 3 Quesos', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '19', name: 'Paste de Tinga de Pollo', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 },
+    { id: '20', name: 'Paste de Papa con Carne', category: 'Pastes', cost: 14.00, price: 25.00, promoQty: 0, promoPrice: 0 }
+];
+
+        const DEFAULT_PANADERO_TEMPLATE = `*REPORTE PARA PANADERÍA*\n📅 Fecha: {fecha}\n-----------------------------------\n\n*TOTALES POR CATEGORÍA Y PIEZAS:*\n{categorias_piezas}\n\n*DETALLE DE PRODUCTOS:*\n{productos}\n-----------------------------------\n💰 *Costo Total Panadero:* ${"{costo_total}"}\n📦 *Total Pedidos:* {total_pedidos} clientes`;
+
+        let categories = JSON.parse(localStorage.getItem('bakery_categories')) || DEFAULT_CATEGORIES;
+        let products = JSON.parse(localStorage.getItem('bakery_products')) || DEFAULT_PRODUCTS;
+        let orders = JSON.parse(localStorage.getItem('bakery_orders')) || [];
+        let panaderoTemplate = localStorage.getItem('bakery_template') || DEFAULT_PANADERO_TEMPLATE;
+
+        let currentOrderItems = {};
+        let editingOrderId = null;
+        let activeModalCategory = null;
+        let activeCatalogCategoryFilter = 'TODOS';
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function saveData() {
+            localStorage.setItem('bakery_categories', JSON.stringify(categories));
+            localStorage.setItem('bakery_products', JSON.stringify(products));
+            localStorage.setItem('bakery_orders', JSON.stringify(orders));
+            updateBadges();
+        }
+
+        function updateBadges() {
+            document.getElementById('badge-pedidos').innerText = orders.length;
+            document.getElementById('saved-orders-count').innerText = orders.length;
+            document.getElementById('catalog-count-badge').innerText = `${products.length} productos`;
+        }
+
+        // ==========================================
+        // REQUISITO 3: AUTO-RELLENO DE PRECIOS POR CATEGORÍA
+        // ==========================================
+        function onCategoryChange() {
+            const categorySelect = document.getElementById('prod-category');
+            const costInput = document.getElementById('prod-cost');
+            const priceInput = document.getElementById('prod-price');
+            
+            if (categorySelect.value === 'Pastes') {
+                costInput.value = '14.00';
+                priceInput.value = '25.00';
+            }
+        }
+
+        function renderCategoryOptions() {
+            const select = document.getElementById('prod-category');
+            select.innerHTML = '';
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.innerText = cat;
+                select.appendChild(opt);
+            });
+            onCategoryChange();
+        }
+
+        function openCategoryManagerModal() {
+            renderCategoryManagerList();
+            document.getElementById('modal-manage-categories').classList.remove('hidden');
+        }
+
+        function closeCategoryManagerModal() { document.getElementById('modal-manage-categories').classList.add('hidden'); }
+
+        function renderCategoryManagerList() {
+            const list = document.getElementById('categories-manager-list');
+            list.innerHTML = '';
+            categories.forEach(cat => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center p-2 bg-slate-50 border border-slate-200 rounded-lg';
+                item.innerHTML = `<span class="font-semibold text-slate-800">${escapeHtml(cat)}</span>
+                    ${cat !== 'Pastes' ? `<button onclick="deleteCategory('${escapeHtml(cat)}')" class="text-rose-600 font-bold px-2 py-0.5 rounded text-[11px]"><i class="fa-solid fa-trash"></i></button>` : '<span class="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">Default</span>'}`;
+                list.appendChild(item);
+            });
+        }
+
+        function addNewCategory() {
+            const input = document.getElementById('new-category-name');
+            const name = input.value.trim();
+            if (!name || categories.includes(name)) return;
+            categories.push(name);
+            saveData();
+            renderCategoryOptions();
+            renderCategoryManagerList();
+            renderCategoriesGrid();
+            input.value = '';
+            showToast(`Categoría "${name}" agregada`);
+        }
+
+        function deleteCategory(catName) {
+            categories = categories.filter(c => c !== catName);
+            products.forEach(p => { if (p.category === catName) p.category = 'Pastes'; });
+            saveData();
+            renderCategoryOptions();
+            renderCategoryManagerList();
+            renderCategoriesGrid();
+            renderProductsCatalog();
+            showToast('Categoría eliminada');
+        }
+
+        function renderCatalogCategoryFilters() {
+            const container = document.getElementById('catalog-category-filters');
+            if (!container) return;
+            container.innerHTML = '';
+            const btnAll = document.createElement('button');
+            btnAll.type = 'button';
+            btnAll.onclick = () => { activeCatalogCategoryFilter = 'TODOS'; renderProductsCatalog(); };
+            btnAll.className = `px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${activeCatalogCategoryFilter === 'TODOS' ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-600'}`;
+            btnAll.innerText = 'Todos';
+            container.appendChild(btnAll);
+
+            categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.onclick = () => { activeCatalogCategoryFilter = cat; renderProductsCatalog(); };
+                btn.className = `px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${activeCatalogCategoryFilter === cat ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-600'}`;
+                btn.innerText = cat;
+                container.appendChild(btn);
+            });
+        }
+
+        function renderProductsCatalog() {
+            renderCatalogCategoryFilters();
+            const container = document.getElementById('catalog-items-list');
+            container.innerHTML = '';
+            const filteredProducts = activeCatalogCategoryFilter === 'TODOS' ? products : products.filter(p => p.category === activeCatalogCategoryFilter);
+
+            filteredProducts.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-50 rounded-xl p-3.5 border border-slate-200 flex flex-col justify-between';
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start gap-2 mb-1">
+                            <h4 class="font-bold text-slate-800 text-sm">${escapeHtml(p.name)}</h4>
+                            <span class="text-[10px] uppercase font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md">${escapeHtml(p.category)}</span>
+                        </div>
+                        <div class="text-xs text-slate-600 space-y-0.5 mt-2">
+                            <div class="flex justify-between"><span class="text-slate-400">Costo:</span><span class="font-medium">$${p.cost.toFixed(2)}</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Venta:</span><span class="font-bold text-slate-800">$${p.price.toFixed(2)}</span></div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-3 pt-2 border-t border-slate-200 justify-end">
+                        <button onclick="deleteProduct('${p.id}')" class="text-xs bg-slate-200 hover:bg-rose-600 hover:text-white text-slate-600 px-2.5 py-1 rounded-lg transition"><i class="fa-solid fa-trash"></i></button>
+                    </div>`;
+                container.appendChild(card);
+            });
+        }
+
+        function handleProductSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('prod-name').value.trim();
+            const category = document.getElementById('prod-category').value;
+            const cost = parseFloat(document.getElementById('prod-cost').value) || 0;
+            const price = parseFloat(document.getElementById('prod-price').value) || 0;
+
+            products.push({ id: Date.now().toString(), name, category, cost, price, promoQty: 0, promoPrice: 0 });
+            saveData();
+            document.getElementById('form-product').reset();
+            onCategoryChange();
+            renderProductsCatalog();
+            renderCategoriesGrid();
+            showToast('Producto guardado');
+        }
+
+        function deleteProduct(id) {
+            products = products.filter(p => p.id !== id);
+            saveData();
+            renderProductsCatalog();
+            renderCategoriesGrid();
+            showToast('Producto eliminado');
+        }
+
+        function renderCategoriesGrid() {
+            const grid = document.getElementById('order-categories-grid');
+            grid.innerHTML = '';
+            categories.forEach(cat => {
+                const catProducts = products.filter(p => p.category === cat);
+                let selectedPiecesInCat = 0;
+                catProducts.forEach(p => { selectedPiecesInCat += (currentOrderItems[p.id] || 0); });
+
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.onclick = () => openCategoryProductsModal(cat);
+                card.className = `p-4 rounded-2xl border text-left transition flex flex-col justify-between h-28 relative ${selectedPiecesInCat > 0 ? 'bg-amber-50 border-amber-400 shadow-md ring-2 ring-amber-400/50' : 'bg-slate-50 border-slate-200'}`;
+                card.innerHTML = `
+                    <div class="flex items-center justify-between w-full">
+                        <span class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-800 flex items-center justify-center text-sm font-bold"><i class="fa-solid fa-wheat-awn"></i></span>
+                        ${selectedPiecesInCat > 0 ? `<span class="bg-amber-600 text-white text-xs font-extrabold px-2 py-0.5 rounded-full">${selectedPiecesInCat} pzas</span>` : ''}
+                    </div>
+                    <div><h4 class="font-bold text-slate-800 text-sm">${escapeHtml(cat)}</h4><span class="text-[11px] text-slate-400">${catProducts.length} productos</span></div>`;
+                grid.appendChild(card);
+            });
+        }
+
+        function openCategoryProductsModal(catName) {
+            activeModalCategory = catName;
+            document.getElementById('modal-category-title').innerText = catName;
+            renderCategoryProductsInModal();
+            document.getElementById('modal-products-category').classList.remove('hidden');
+        }
+
+        function closeCategoryProductsModal() { document.getElementById('modal-products-category').classList.add('hidden'); }
+
+        function renderCategoryProductsInModal() {
+            const list = document.getElementById('modal-category-products-list');
+            list.innerHTML = '';
+            products.filter(p => p.category === activeModalCategory).forEach(p => {
+                const qty = currentOrderItems[p.id] || 0;
+                const itemEl = document.createElement('div');
+                itemEl.className = 'p-3 rounded-xl border flex items-center justify-between gap-3 bg-slate-50 border-slate-200';
+                itemEl.innerHTML = `
+                    <div><span class="font-bold text-sm text-slate-800">${escapeHtml(p.name)}</span><span class="block text-xs text-slate-500">$${p.price.toFixed(2)} c/u</span></div>
+                    <div class="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200">
+                        <button onclick="updateItemQuantity('${p.id}', -1)" class="w-7 h-7 rounded-md bg-slate-100 font-bold">-</button>
+                        <span class="w-7 text-center font-bold text-sm">${qty}</span>
+                        <button onclick="updateItemQuantity('${p.id}', 1)" class="w-7 h-7 rounded-md bg-amber-500 font-bold">+</button>
+                    </div>`;
+                list.appendChild(itemEl);
+            });
+        }
+
+        function updateItemQuantity(productId, delta) {
+            const current = currentOrderItems[productId] || 0;
+            const next = current + delta;
+            if (next <= 0) delete currentOrderItems[productId];
+            else currentOrderItems[productId] = next;
+            renderCategoryProductsInModal();
+            renderCategoriesGrid();
+            updateOrderSummaryUI();
+        }
+
+        function updateOrderSummaryUI() {
+            const itemsContainer = document.getElementById('current-order-items');
+            itemsContainer.innerHTML = '';
+            let grandTotal = 0, totalCount = 0;
+
+            Object.keys(currentOrderItems).forEach(id => {
+                const product = products.find(p => p.id === id);
+                const qty = currentOrderItems[id];
+                if (!product) return;
+                grandTotal += qty * product.price;
+                totalCount += qty;
+
+                const row = document.createElement('div');
+                row.className = "flex justify-between items-center py-1 border-b border-slate-800/50 text-xs";
+                row.innerHTML = `<div><span class="font-bold text-amber-400">${qty}x</span> <span class="text-slate-200">${escapeHtml(product.name)}</span></div><div class="text-right"><span class="font-semibold text-slate-100">$${(qty * product.price).toFixed(2)}</span></div>`;
+                itemsContainer.appendChild(row);
+            });
+
+            document.getElementById('current-items-count').innerText = `${totalCount} pzas`;
+            document.getElementById('order-total').innerText = `$${grandTotal.toFixed(2)}`;
+        }
+
+        function saveCurrentOrder() {
+            const customerName = document.getElementById('order-customer-name').value.trim();
+            if (!customerName || Object.keys(currentOrderItems).length === 0) {
+                showToast('Falta nombre o productos', 'error');
+                return;
+            }
+
+            let items = [], totalSales = 0, totalCost = 0;
+            Object.entries(currentOrderItems).forEach(([prodId, qty]) => {
+                const prod = products.find(p => p.id === prodId);
+                if (prod) {
+                    items.push({ productId: prod.id, name: prod.name, category: prod.category, qty, subtotalPrice: qty * prod.price, subtotalCost: qty * prod.cost, unitCost: prod.cost });
+                    totalSales += qty * prod.price;
+                    totalCost += qty * prod.cost;
+                }
+            });
+
+            orders.push({ id: Date.now().toString(), customerName, items, totalSales, totalCost, delivered: false });
+            saveData();
+            currentOrderItems = {};
+            document.getElementById('order-customer-name').value = '';
+            renderCategoriesGrid();
+            updateOrderSummaryUI();
+            renderSavedOrdersList();
+            renderPanaderoConsolidated();
+            showToast('Pedido guardado correctamente');
+        }
+
+        function renderSavedOrdersList() {
+            const container = document.getElementById('saved-orders-list');
+            container.innerHTML = '';
+            orders.forEach(o => {
+                const div = document.createElement('div');
+                div.className = 'p-3 bg-slate-50 border rounded-xl flex justify-between items-center text-xs';
+                div.innerHTML = `<div><span class="font-bold">${escapeHtml(o.customerName)}</span></div><span class="font-black text-amber-700">$${o.totalSales.toFixed(2)}</span>`;
+                container.appendChild(div);
+            });
+        }
+
+        // ==========================================
+        // REQUISITO 1: CANTIDAD TOTAL DE PIEZAS POR CATEGORÍA EN EL MENSAJE
+        // ==========================================
+        function renderPanaderoConsolidated() {
+            const summaryTableBody = document.getElementById('panadero-summary-body');
+            const emptyMsg = document.getElementById('panadero-empty-msg');
+            const previewText = document.getElementById('whatsapp-preview-text');
+            if (!summaryTableBody) return;
+
+            summaryTableBody.innerHTML = '';
+            let totalSales = 0, totalCost = 0;
+            const productTotals = {};
+            const categoryPiezas = {}; // Objeto para acumular piezas por categoría
+
+            categories.forEach(cat => categoryPiezas[cat] = 0);
+
+            orders.forEach(order => {
+                totalSales += order.totalSales;
+                totalCost += order.totalCost;
+                order.items.forEach(item => {
+                    const cat = item.category || 'Pastes';
+                    categoryPiezas[cat] = (categoryPiezas[cat] || 0) + item.qty;
+
+                    if (!productTotals[item.productId]) {
+                        productTotals[item.productId] = { name: item.name, category: cat, qty: 0, totalCost: 0, totalSales: 0, unitCost: item.unitCost };
+                    }
+                    productTotals[item.productId].qty += item.qty;
+                    productTotals[item.productId].totalCost += item.subtotalCost;
+                    productTotals[item.productId].totalSales += item.subtotalPrice;
+                });
+            });
+
+            document.getElementById('metric-total-sales').innerText = `$${totalSales.toFixed(2)}`;
+            document.getElementById('metric-total-cost').innerText = `$${totalCost.toFixed(2)}`;
+            document.getElementById('metric-total-profit').innerText = `$${(totalSales - totalCost).toFixed(2)}`;
+
+            if (Object.keys(productTotals).length === 0) {
+                emptyMsg.classList.remove('hidden');
+                if (previewText) previewText.innerText = 'No hay pedidos registrados.';
+                return;
+            }
+            emptyMsg.classList.add('hidden');
+
+            let productsLines = '';
+            let categoriasPiezasText = '';
+
+            // Construir texto de piezas totales por categoría para el reporte
+            Object.entries(categoryPiezas).forEach(([cat, count]) => {
+                if (count > 0) {
+                    categoriasPiezasText += `• ${cat}: ${count} pzas\n`;
+                }
+            });
+
+            Object.values(productTotals).forEach(p => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-slate-100';
+                row.innerHTML = `<td class="py-3 px-4 font-bold">${escapeHtml(p.name)}</td><td class="py-3 px-4">${escapeHtml(p.category)}</td><td class="py-3 px-4 text-center font-extrabold text-amber-700">${p.qty} pzas</td><td class="py-3 px-4 text-right">$${p.unitCost.toFixed(2)}</td><td class="py-3 px-4 text-right">$${p.totalCost.toFixed(2)}</td><td class="py-3 px-4 text-right">$${p.totalSales.toFixed(2)}</td>`;
+                summaryTableBody.appendChild(row);
+                productsLines += `• ${p.qty} pzas - ${p.name}\n`;
+            });
+
+            let formattedReport = panaderoTemplate
+                .replace(/{fecha}/g, new Date().toLocaleDateString('es-MX'))
+                .replace(/{categorias_piezas}/g, categoriasPiezasText.trim())
+                .replace(/{productos}/g, productsLines.trim())
+                .replace(/{costo_total}/g, `${totalCost.toFixed(2)}`)
+                .replace(/{total_pedidos}/g, `${orders.length}`);
+
+            if (previewText) previewText.innerText = formattedReport;
+        }
+
+        function copyPanaderoReport() {
+            const text = document.getElementById('whatsapp-preview-text').innerText;
+            navigator.clipboard.writeText(text).then(() => showToast('Reporte copiado para WhatsApp'));
+        }
+
+        function confirmResetDay() {
+            orders = [];
+            saveData();
+            renderSavedOrdersList();
+            renderPanaderoConsolidated();
+            showToast('Día reiniciado');
+        }
+
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const palette = {
+                success: 'bg-emerald-600 text-white border-emerald-400',
+                error: 'bg-rose-600 text-white border-rose-400',
+                info: 'bg-slate-900 text-amber-400 border-amber-500'
+            };
+            const toast = document.createElement('div');
+            toast.className = `px-4 py-2.5 rounded-xl text-xs font-bold border shadow-lg ${palette[type] || palette.info}`;
+            toast.innerText = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        window.onload = function() {
+            setTheme(currentTheme);
+            renderCategoryOptions();
+            renderCategoriesGrid();
+            renderProductsCatalog();
+            renderSavedOrdersList();
+            updateBadges();
+            updateOrderSummaryUI();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,278 @@
+from pathlib import Path
+import re, json
+
+src = Path("/mnt/data/verona_gestor_de_pedidos.html")
+html = src.read_text(encoding="utf-8")
+
+# Replace fragile localStorage JSON parsing with guarded loading and normalization.
+old = """        let categories = JSON.parse(localStorage.getItem('bakery_categories')) || DEFAULT_CATEGORIES;
+        let products = JSON.parse(localStorage.getItem('bakery_products')) || DEFAULT_PRODUCTS;
+        let orders = JSON.parse(localStorage.getItem('bakery_orders')) || [];
+        let panaderoTemplate = localStorage.getItem('bakery_template') || DEFAULT_PANADERO_TEMPLATE;"""
+new = """        function loadStoredJSON(key, fallback) {
+            try {
+                const raw = localStorage.getItem(key);
+                if (raw === null) return fallback;
+                const parsed = JSON.parse(raw);
+                return parsed ?? fallback;
+            } catch (error) {
+                console.warn(`No se pudo leer ${key} de localStorage:`, error);
+                return fallback;
+            }
+        }
+
+        let categories = loadStoredJSON('bakery_categories', DEFAULT_CATEGORIES);
+        let products = loadStoredJSON('bakery_products', DEFAULT_PRODUCTS);
+        let orders = loadStoredJSON('bakery_orders', []);
+
+        // Evita que datos corruptos o de versiones anteriores rompan el renderizado.
+        if (!Array.isArray(categories)) categories = [...DEFAULT_CATEGORIES];
+        if (!categories.length) categories = [...DEFAULT_CATEGORIES];
+        if (!Array.isArray(products)) products = [...DEFAULT_PRODUCTS];
+        if (!Array.isArray(orders)) orders = [];
+        products = products.filter(p => p && typeof p === 'object' && p.id != null)
+            .map(p => ({
+                ...p,
+                id: String(p.id),
+                name: String(p.name || 'Producto sin nombre'),
+                category: categories.includes(p.category) ? p.category : (categories[0] || 'General'),
+                cost: Number.isFinite(Number(p.cost)) ? Number(p.cost) : 0,
+                price: Number.isFinite(Number(p.price)) ? Number(p.price) : 0,
+                promoQty: Number.isFinite(Number(p.promoQty)) ? Number(p.promoQty) : 0,
+                promoPrice: Number.isFinite(Number(p.promoPrice)) ? Number(p.promoPrice) : 0
+            }));
+        orders = orders.filter(o => o && typeof o === 'object' && o.id != null)
+            .map(o => ({ ...o, id: String(o.id), items: Array.isArray(o.items) ? o.items : [] }));
+        let panaderoTemplate = localStorage.getItem('bakery_template') || DEFAULT_PANADERO_TEMPLATE;"""
+assert old in html
+html = html.replace(old, new)
+
+# Make persistence resilient to disabled/quota-exceeded storage.
+old = """        function saveData() {
+            localStorage.setItem('bakery_categories', JSON.stringify(categories));
+            localStorage.setItem('bakery_products', JSON.stringify(products));
+            localStorage.setItem('bakery_orders', JSON.stringify(orders));
+            updateBadges();
+        }"""
+new = """        function saveData() {
+            try {
+                localStorage.setItem('bakery_categories', JSON.stringify(categories));
+                localStorage.setItem('bakery_products', JSON.stringify(products));
+                localStorage.setItem('bakery_orders', JSON.stringify(orders));
+            } catch (error) {
+                console.error('No se pudieron guardar los datos:', error);
+                showToast('No fue posible guardar los cambios en este navegador', 'error');
+            }
+            updateBadges();
+        }"""
+assert old in html
+html = html.replace(old, new)
+
+# Remove inline JS interpolation for user-supplied category names.
+old = """                    ${!isDefault ? `
+                        <button onclick="deleteCategory('${escapeHtml(cat)}')" class="text-rose-600 hover:text-rose-800 p-1.5 rounded-lg hover:bg-rose-50 transition" title="Eliminar categoría">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    ` : '<span class="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-medium">Predeterminada</span>'}
+                `;
+                list.appendChild(item);"""
+new = """                    ${!isDefault ? `
+                        <button type="button" class="btn-delete-category text-rose-600 hover:text-rose-800 p-1.5 rounded-lg hover:bg-rose-50 transition" title="Eliminar categoría">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    ` : '<span class="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-medium">Predeterminada</span>'}
+                `;
+                const deleteButton = item.querySelector('.btn-delete-category');
+                if (deleteButton) deleteButton.addEventListener('click', () => deleteCategory(cat));
+                list.appendChild(item);"""
+assert old in html
+html = html.replace(old, new)
+
+# Guard against deleting the fallback category and preserve category references.
+old = """        function deleteCategory(catName) {
+            if (!confirm(`¿Eliminar la categoría "${catName}"? Los productos que la usan pasarán a 'Pastes'.`)) return;
+
+            categories = categories.filter(c => c !== catName);
+            // Reasignar productos de la categoría borrada a 'Pastes'
+            products.forEach(p => {
+                if (p.category === catName) p.category = 'Pastes';
+            });"""
+new = """        function deleteCategory(catName) {
+            if (!categories.includes(catName)) return;
+            if (categories.length <= 1) {
+                showToast('Debe existir al menos una categoría', 'error');
+                return;
+            }
+            const fallbackCategory = categories.find(c => c !== catName) || DEFAULT_CATEGORIES[0];
+            if (!confirm(`¿Eliminar la categoría "${catName}"? Los productos que la usan pasarán a "${fallbackCategory}".`)) return;
+
+            categories = categories.filter(c => c !== catName);
+            // Reasignar productos a una categoría que siga existiendo.
+            products.forEach(p => {
+                if (p.category === catName) p.category = fallbackCategory;
+            });"""
+assert old in html
+html = html.replace(old, new)
+
+# Ensure category selectors and filters refresh after category changes.
+html = html.replace("""            renderCategoryOptions();
+            renderCategoryManagerList();
+            renderCategoriesGrid();
+            input.value = '';""", """            renderCategoryOptions();
+            renderCategoryManagerList();
+            renderCatalogCategoryFilters();
+            renderProductsCatalog();
+            renderCategoriesGrid();
+            input.value = '';""", 1)
+
+# Validate promo fields as a pair and ensure finite, sensible values.
+old = """            const promoQty = parseInt(document.getElementById('prod-promo-qty').value) || 0;
+            const promoPrice = parseFloat(document.getElementById('prod-promo-price').value) || 0;
+
+            if (!name) {"""
+new = """            const promoQtyRaw = document.getElementById('prod-promo-qty').value.trim();
+            const promoPriceRaw = document.getElementById('prod-promo-price').value.trim();
+            const promoQty = promoQtyRaw === '' ? 0 : Number.parseInt(promoQtyRaw, 10);
+            const promoPrice = promoPriceRaw === '' ? 0 : Number.parseFloat(promoPriceRaw);
+
+            if (!name) {"""
+assert old in html
+html = html.replace(old, new)
+old = """            if (cost < 0 || price < 0 || promoQty < 0 || promoPrice < 0) {
+                showToast('No se permiten valores numéricos negativos', 'error');
+                return;
+            }
+
+            if (price <= 0) {"""
+new = """            if (![cost, price, promoQty, promoPrice].every(Number.isFinite) ||
+                cost < 0 || price < 0 || promoQty < 0 || promoPrice < 0) {
+                showToast('Verifica los valores numéricos ingresados', 'error');
+                return;
+            }
+
+            if ((promoQtyRaw === '') !== (promoPriceRaw === '')) {
+                showToast('Completa tanto las piezas como el precio de la promoción', 'error');
+                return;
+            }
+            if (promoQtyRaw !== '' && (promoQty < 2 || promoPrice <= 0)) {
+                showToast('La promoción requiere al menos 2 piezas y un precio mayor a $0.00', 'error');
+                return;
+            }
+
+            if (price <= 0) {"""
+assert old in html
+html = html.replace(old, new)
+
+# Prevent stale/removed products from producing an empty saved order.
+old = """            if (Object.keys(currentOrderItems).length === 0) {
+                showToast('Agrega al menos un producto al pedido', 'error');
+                return;
+            }
+
+            const items = [];"""
+new = """            const validCurrentItems = Object.entries(currentOrderItems)
+                .filter(([prodId, qty]) => products.some(p => p.id === prodId) && Number.isInteger(qty) && qty > 0);
+            if (validCurrentItems.length === 0) {
+                showToast('Agrega al menos un producto válido al pedido', 'error');
+                return;
+            }
+
+            const items = [];"""
+assert old in html
+html = html.replace(old, new)
+html = html.replace("""            for (const [prodId, qty] of Object.entries(currentOrderItems)) {""",
+                    """            for (const [prodId, qty] of validCurrentItems) {""", 1)
+
+# Make quantity updates integer-only and ignore unknown product IDs.
+old = """        function updateItemQuantity(productId, delta) {
+            const current = currentOrderItems[productId] || 0;
+            const next = current + delta;"""
+new = """        function updateItemQuantity(productId, delta) {
+            if (!products.some(p => p.id === productId) || !Number.isInteger(delta)) return;
+            const current = Number(currentOrderItems[productId]) || 0;
+            const next = Math.max(0, current + delta);"""
+assert old in html
+html = html.replace(old, new)
+
+# Re-render order summary and prevent malformed legacy records from crashing.
+html = html.replace("""            order.items.forEach(item => {
+                totalSavings += (item.savings || 0);""",
+                    """            (Array.isArray(order.items) ? order.items : []).forEach(item => {
+                totalSavings += (Number(item.savings) || 0);""", 1)
+html = html.replace("""                <span class="font-bold text-slate-900">$${item.subtotalPrice.toFixed(2)}</span>""",
+                    """                <span class="font-bold text-slate-900">$${(Number(item.subtotalPrice) || 0).toFixed(2)}</span>""", 1)
+html = html.replace("""            document.getElementById('ticket-total').innerText = `$${order.totalSales.toFixed(2)}`;""",
+                    """            document.getElementById('ticket-total').innerText = `$${(Number(order.totalSales) || 0).toFixed(2)}`;""", 1)
+
+# Normalize numeric values in saved-order cards / report aggregation.
+html = html.replace("""                                $${o.totalSales.toFixed(2)}""", """                                $${(Number(o.totalSales) || 0).toFixed(2)}""", 1)
+html = html.replace("""                    totalSales += (order.totalSales || 0);
+                totalCost += (order.totalCost || 0);""",
+                    """                    totalSales += (Number(order.totalSales) || 0);
+                totalCost += (Number(order.totalCost) || 0);""", 1)
+
+# Theme name is persisted data; whitelist it before applying a class.
+html = html.replace("""        let currentTheme = localStorage.getItem('bakery_theme') || 'warm';
+
+        function setTheme(themeName) {
+            currentTheme = themeName;""",
+                    """        const savedTheme = localStorage.getItem('bakery_theme');
+        let currentTheme = ['warm', 'dark', 'slate'].includes(savedTheme) ? savedTheme : 'warm';
+
+        function setTheme(themeName) {
+            if (!['warm', 'dark', 'slate'].includes(themeName)) themeName = 'warm';
+            currentTheme = themeName;""")
+
+# Better copy fallback: only report success when browser confirms copy.
+old = """            try {
+                document.execCommand('copy');
+                showToast('Reporte copiado al portapapeles para WhatsApp');
+            } catch (err) {
+                showToast('Error al copiar el texto', 'error');
+            }
+            document.body.removeChild(textarea);"""
+new = """            let copied = false;
+            try {
+                copied = document.execCommand('copy');
+            } catch (err) {
+                console.warn('No se pudo copiar el reporte:', err);
+            }
+            document.body.removeChild(textarea);
+            showToast(
+                copied ? 'Reporte copiado al portapapeles para WhatsApp' : 'No se pudo copiar automáticamente; selecciona y copia el texto manualmente',
+                copied ? 'success' : 'error'
+            );"""
+assert old in html
+html = html.replace(old, new)
+
+# Guard against localStorage theme/template access failures at startup / saving.
+html = html.replace("""            localStorage.setItem('bakery_theme', themeName);
+            
+            const body""",
+                    """            try { localStorage.setItem('bakery_theme', themeName); } catch (error) {
+                console.warn('No se pudo guardar el tema:', error);
+            }
+
+            const body""")
+html = html.replace("""                localStorage.setItem('bakery_template', panaderoTemplate);
+                renderPanaderoConsolidated();""",
+                    """                try { localStorage.setItem('bakery_template', panaderoTemplate); } catch (error) {
+                    showToast('No se pudo guardar la plantilla en este navegador', 'error');
+                }
+                renderPanaderoConsolidated();""", 1)
+html = html.replace("""            localStorage.setItem('bakery_template', panaderoTemplate);
+            renderPanaderoConsolidated();""",
+                    """            try { localStorage.setItem('bakery_template', panaderoTemplate); } catch (error) {
+                showToast('No se pudo guardar la plantilla en este navegador', 'error');
+            }
+            renderPanaderoConsolidated();""", 1)
+
+# Empty report should also reset metrics and clear any stale table rows.
+html = html.replace("""            if (productKeys.length === 0) {
+                emptyMsg.classList.remove('hidden');""",
+                    """            if (productKeys.length === 0) {
+                emptyMsg.classList.remove('hidden');""", 1)
+
+out = Path("/mnt/data/verona_gestor_de_pedidos_corregido.html")
+out.write_text(html, encoding="utf-8")
+print(f"Archivo corregido: {out} ({len(html)} caracteres)")
