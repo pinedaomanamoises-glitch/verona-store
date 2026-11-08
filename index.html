@@ -113,9 +113,93 @@ body.theme-warm textarea {
             color: #0f172a;
         }
         body.theme-dark {
-            background-color: #0f172a;
-            color: #f8fafc;
-        }
+    background: radial-gradient(circle at top, #1a1026 0%, #050505 60%);
+    color: #f5f3ff;
+}
+        /* Tarjetas y fondos claros que deben volverse oscuros */
+body.theme-dark .bg-white,
+body.theme-dark .bg-slate-50,
+body.theme-dark .bg-slate-100,
+body.theme-dark .bg-slate-200,
+body.theme-dark .bg-amber-50,
+body.theme-dark .bg-amber-100,
+body.theme-dark .bg-emerald-50,
+body.theme-dark .bg-emerald-100,
+body.theme-dark .bg-blue-50,
+body.theme-dark .bg-rose-50,
+body.theme-dark .bg-rose-100 {
+    background-color: #17131f !important;
+    color: #f5f3ff !important;
+    border-color: #3b2a52 !important;
+}
+
+/* Fondos con opacidad: bg-amber-50/50, /30, etc. */
+body.theme-dark .bg-amber-50\/30,
+body.theme-dark .bg-amber-50\/40,
+body.theme-dark .bg-amber-50\/50,
+body.theme-dark .bg-amber-50\/70,
+body.theme-dark .bg-slate-50\/50,
+body.theme-dark .bg-slate-100\/80 {
+    background-color: rgba(59, 42, 82, 0.45) !important;
+}
+
+/* Bordes */
+body.theme-dark .border-slate-100,
+body.theme-dark .border-slate-200,
+body.theme-dark .border-amber-100,
+body.theme-dark .border-amber-200,
+body.theme-dark .border-emerald-100 {
+    border-color: #3b2a52 !important;
+}
+
+body.theme-dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #3b2a52 !important;
+}
+
+/* Textos principales */
+body.theme-dark .text-slate-900,
+body.theme-dark .text-slate-800,
+body.theme-dark .text-slate-700 {
+    color: #f5f3ff !important;
+}
+
+body.theme-dark .text-slate-600,
+body.theme-dark .text-slate-500 {
+    color: #c4b5fd !important;
+}
+
+body.theme-dark .text-amber-900,
+body.theme-dark .text-amber-800,
+body.theme-dark .text-amber-700 {
+    color: #e9d5ff !important;
+}
+
+body.theme-dark .text-emerald-700,
+body.theme-dark .text-emerald-600 {
+    color: #6ee7b7 !important;
+}
+
+body.theme-dark .text-blue-600 {
+    color: #93c5fd !important;
+}
+
+body.theme-dark .text-rose-600 {
+    color: #fda4af !important;
+}
+
+/* Formularios */
+body.theme-dark input,
+body.theme-dark select,
+body.theme-dark textarea {
+    background-color: #0f0d14 !important;
+    color: #f5f3ff !important;
+    border-color: #4c3a66 !important;
+}
+
+body.theme-dark input::placeholder,
+body.theme-dark textarea::placeholder {
+    color: #8b7aa8 !important;
+}
         body.theme-dark .bg-white {
             background-color: #1e293b !important;
             color: #f8fafc !important;
